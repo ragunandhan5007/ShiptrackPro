@@ -32,8 +32,9 @@ import com.shipment.auth.service.OtpStore;
 import com.shipment.auth.util.OtpData;
 
 import java.util.UUID;
-
 import java.time.LocalDateTime;
+
+import com.shipment.notification.sms.SmsService;
 import com.shipment.auth.dto.request.SendLoginOtpRequest;
 import com.shipment.auth.dto.response.LoginOtpResponse;
 import com.shipment.auth.dto.request.VerifyLoginOtpRequest;
@@ -52,6 +53,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OtpStore otpStore;
+    private final SmsService smsService;
     @Override
     public ApiResponse register(RegisterRequest request) {
 
@@ -220,11 +222,25 @@ public class AuthServiceImpl implements AuthService {
             System.err.println("Note: Email sending skipped/failed: " + e.getMessage());
         }
 
+        // Dispatch SMS via Fast2SMS
+        boolean smsSent = false;
+        if (user.getPhone() != null && !user.getPhone().trim().isEmpty()) {
+            smsSent = smsService.sendOtpSms(user.getPhone(), otp);
+        }
+
+        String phoneSuffix = "";
+        if (user.getPhone() != null && user.getPhone().trim().length() >= 4) {
+            String p = user.getPhone().trim();
+            phoneSuffix = " ending in ****" + p.substring(p.length() - 4);
+        }
+
+        String displayMessage = smsSent
+                ? "OTP sent successfully via SMS to your mobile phone" + phoneSuffix
+                : "OTP sent! Your verification code is: " + otp;
+
         return LoginOtpResponse.builder()
                 .success(true)
-                .message(
-                        "OTP sent! Your verification code is: " + otp
-                )
+                .message(displayMessage)
                 .build();
     }
 

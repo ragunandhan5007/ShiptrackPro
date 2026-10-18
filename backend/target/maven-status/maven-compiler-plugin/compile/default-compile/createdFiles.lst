@@ -240,6 +240,7 @@ com\shipment\auth\service\JwtService.class
 com\shipment\auth\service\EmailService.class
 com\shipment\shipmentmanagement\exception\InvalidRouteException.class
 com\shipment\notification\repository\NotificationRepository.class
+com\shipment\notification\sms\SmsService.class
 com\shipment\shipmentmanagement\dto\TrackingResponse.class
 com\shipment\auth\repository\PasswordResetTokenRepository.class
 com\shipment\shipmentmanagement\util\ForecastCalculator$1.class

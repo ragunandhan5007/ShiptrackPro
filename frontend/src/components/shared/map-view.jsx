@@ -124,9 +124,9 @@ export function MapView({
       }}
     >
       <TileLayer
-        attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://www.google.com/maps" target="_blank" rel="noreferrer">Google Maps</a>'
+        url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        maxZoom={20}
       />
       <FitBounds points={allPoints} />
 
