@@ -315,6 +315,7 @@ public class AuthServiceImpl implements AuthService {
         otpStore.remove(user.getEmail());
 
         user.setActive(true);
+        user.setLastLogin(LocalDateTime.now());
 
         userRepository.save(user);
 
@@ -519,6 +520,9 @@ public class AuthServiceImpl implements AuthService {
                     "Please verify your account first"
             );
         }
+
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
 //        String token = jwtService.generateToken(user);
 //        return LoginResponse.builder()
 //                .email(user.getEmail())

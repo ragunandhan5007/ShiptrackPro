@@ -121,13 +121,13 @@ public List<Shipment> getMyCustomerShipments() {
 
         return "Current hub updated successfully.";
     }
-    @GetMapping("/{shipmentId}/tracking")
+    @GetMapping("/{identifier}/tracking")
     public TrackingResponse getTrackingDetails(
-            @PathVariable Long shipmentId
+            @PathVariable String identifier
     ) {
 
         return shipmentService.getTrackingDetails(
-                shipmentId
+                identifier
         );
     }
 

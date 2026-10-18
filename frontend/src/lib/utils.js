@@ -34,9 +34,18 @@ export function formatDateTime(iso) {
   });
 }
 export function timeAgo(iso) {
-  const d = new Date(iso).getTime();
+  if (!iso || iso === "—" || iso === "-") return "—";
+  const cleanIso =
+    typeof iso === "string" &&
+    !iso.endsWith("Z") &&
+    !iso.includes("+") &&
+    !iso.includes("-", 10)
+      ? iso + "Z"
+      : iso;
+  const d = new Date(cleanIso).getTime();
   if (isNaN(d)) return "—";
   const diff = Date.now() - d;
+  if (diff < 0) return "just now";
   const sec = Math.floor(diff / 1000);
   if (sec < 60) return "just now";
   const min = Math.floor(sec / 60);

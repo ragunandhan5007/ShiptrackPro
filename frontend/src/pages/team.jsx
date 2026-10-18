@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/context/auth-context";
 import { useTeam,  useUpdateMemberStatus } from "@/lib/hooks";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -58,6 +59,7 @@ import {
   Ban,
   CheckCircle2,
   UserCheck,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,9 +76,16 @@ const statusMeta = {
 };
 
 export function TeamPage() {
+  const { user } = useAuth();
   const { data: members, isLoading } = useTeam();
   // const invite = useInviteMember();
   const updateStatus = useUpdateMemberStatus();
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 15000);
+    return () => clearInterval(timer);
+  }, []);
   // const [open, setOpen] = useState(false);
   // const [form, setForm] = useState({
   //   name: "",
@@ -84,9 +93,29 @@ export function TeamPage() {
   //   role: "operator",
   // });
 
-  const active = members?.filter((m) => m.status === "active") ?? [];
-  // const invited = members?.filter((m) => m.status === "invited") ?? [];
-  const suspended = members?.filter((m) => m.status === "suspended") ?? [];
+  const isOnlineUser = (m) => {
+    if (m.status === "suspended") return false;
+    return Boolean(
+      (user?.id && m.id === user.id) ||
+      (user?.email && m.email && m.email.toLowerCase() === user.email.toLowerCase())
+    );
+  };
+
+  const formatLastActive = (m) => {
+    if (
+      (user?.id && m.id === user.id) ||
+      (user?.email && m.email && m.email.toLowerCase() === user.email.toLowerCase())
+    ) {
+      return "Active now";
+    }
+    const last = m.lastActive;
+    if (!last || last === "—" || last === "-") return "—";
+    return timeAgo(last);
+  };
+
+  const onlineMembers = members?.filter(isOnlineUser) ?? [];
+  const offlineMembers = members?.filter((m) => m.status !== "suspended" && !isOnlineUser(m)) ?? [];
+  const suspendedMembers = members?.filter((m) => m.status === "suspended") ?? [];
 
   // const handleInvite = async () => {
   //   try {
@@ -103,12 +132,23 @@ export function TeamPage() {
   //   }
   // };
 
-  const handleStatusChange = async (id, status) => {
+  const handleStatusChange = async (id, status, memberRole, memberEmail) => {
+    const roleUpper = (memberRole || "").toUpperCase();
+    if (
+      roleUpper === "ADMIN" ||
+      id === user?.id ||
+      memberEmail === user?.email
+    ) {
+      toast.error("Action Prohibited", {
+        description: "Cannot suspend or modify Administrator accounts.",
+      });
+      return;
+    }
     await updateStatus.mutateAsync({
       id,
       status,
     });
-    toast.success(`Member status updated to ${status}`);
+    toast.success(`Member status updated to ${status === "active" ? "Active" : "Suspended"}`);
   };
 
   return (
@@ -183,19 +223,30 @@ export function TeamPage() {
         // }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
-          label="Active Members"
-          value={active.length}
+          label="Online Now"
+          value={onlineMembers.length}
           icon={UserCheck}
-          iconClass="bg-success/10 text-success"
+          iconClass="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+          trend={{ value: "ACTIVE SESSION", direction: "up", positive: true }}
+          footer="Logged in within 30 mins"
         />
 
         <StatCard
-          label="Suspended"
-          value={suspended.length}
+          label="Offline Accounts"
+          value={offlineMembers.length}
+          icon={Users}
+          iconClass="bg-muted text-muted-foreground border border-border"
+          footer="Inactive / Logged out"
+        />
+
+        <StatCard
+          label="Suspended Accounts"
+          value={suspendedMembers.length}
           icon={Ban}
-          iconClass="bg-destructive/10 text-destructive"
+          iconClass="bg-destructive/10 text-destructive border border-destructive/20"
+          footer="Access revoked by Admin"
         />
       </div>
 
@@ -250,48 +301,64 @@ export function TeamPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <span
-                          className={cn(
-                            "inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium",
-                            statusMeta[m.status].class,
-                          )}
-                        >
-                          {statusMeta[m.status].label}
-                        </span>
+                        {m.status === "suspended" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-600 border border-rose-500/20">
+                            <Lock className="h-3 w-3 text-rose-500" /> Suspended
+                          </span>
+                        ) : isOnlineUser(m) ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-500/20">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Online (Active)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border">
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Offline
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                        {m.lastActive === "—" ? "—" : timeAgo(m.lastActive)}
+                        {formatLastActive(m)}
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {m.status === "active" ? (
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() =>
-                                  handleStatusChange(m.id, "suspended")
-                                }
-                              >
-                                <Ban className="mr-2 h-4 w-4" />
-                                Suspend
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleStatusChange(m.id, "active")
-                                }
-                              >
-                                <CheckCircle2 className="mr-2 h-4 w-4 text-success" />
-                                Activate
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {m.id === user?.id || m.email === user?.email ? (
+                          <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">
+                            System Root (You)
+                          </Badge>
+                        ) : m.role?.toUpperCase() === "ADMIN" ? (
+                          <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">
+                            System Root
+                          </Badge>
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {m.status === "active" ? (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive font-semibold"
+                                  onClick={() =>
+                                    handleStatusChange(m.id, "suspended", m.role, m.email)
+                                  }
+                                >
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Suspend & Lock
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  className="text-emerald-600 font-semibold"
+                                  onClick={() =>
+                                    handleStatusChange(m.id, "active", m.role, m.email)
+                                  }
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
+                                  Unlock & Activate
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

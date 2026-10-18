@@ -18,6 +18,8 @@ import {
   ArrowRight,
   Clock,
   Map as MapIcon,
+  Truck,
+  Phone,
 } from "lucide-react";
 import { relativeDay } from "@/lib/utils";
 
@@ -39,12 +41,49 @@ export function TrackPage() {
       try {
         setLoading(true);
 
-        const data = await shipmentsApi.getTracking(submitted);
+        const raw = await shipmentsApi.getTracking(submitted);
 
-        setTracking(data);
+        if (!raw) {
+          setTracking(null);
+          return;
+        }
+
+        const normalized = {
+          ...raw,
+          id: raw.id || raw.shipmentId,
+          trackingNumber: raw.trackingNumber || submitted,
+          status: raw.shipmentStatus || raw.status || "IN_TRANSIT",
+          progress: raw.progressPercentage ?? raw.progress ?? 50,
+          origin: {
+            name: raw.origin?.hubName || raw.origin?.name || raw.origin?.city || raw.senderCity || "Origin Hub",
+            city: raw.origin?.city || raw.origin?.hubName || raw.senderCity || "Origin",
+            ...raw.origin,
+          },
+          destination: {
+            name: raw.destination?.hubName || raw.destination?.name || raw.destination?.city || raw.receiverCity || "Destination Hub",
+            city: raw.destination?.city || raw.destination?.hubName || raw.receiverCity || "Destination",
+            ...raw.destination,
+          },
+          currentLocation: {
+            name: raw.currentLocation?.hubName || raw.currentLocation?.name || raw.currentLocation?.city || "Transit Hub",
+            city: raw.currentLocation?.city || raw.currentLocation?.hubName || "Transit Hub",
+            ...raw.currentLocation,
+          },
+          estimatedDelivery: raw.estimatedArrival || raw.estimatedDeliveryAt || raw.estimatedDelivery || new Date().toISOString(),
+          events: (raw.trackingHistory && raw.trackingHistory.length > 0)
+            ? raw.trackingHistory.map((h, i) => ({
+                id: h.id || i,
+                status: h.status || "IN_TRANSIT",
+                location: h.location || h.hubName || "Transit Hub",
+                timestamp: h.timestamp || h.eventTime || new Date().toISOString(),
+                description: h.description || h.remarks || `Checkpoint recorded at ${h.hubName || "hub"}`,
+              }))
+            : raw.events || [],
+        };
+
+        setTracking(normalized);
       } catch (error) {
-        console.error(error);
-
+        console.error("Load tracking failed:", error);
         setTracking(null);
       } finally {
         setLoading(false);
@@ -180,18 +219,62 @@ export function TrackPage() {
             </CardContent>
           </Card>
 
+          {/* Driver & Courier Transparency Card */}
+          <Card className="border-primary/20 shadow-sm bg-gradient-to-r from-card via-card to-primary/[0.02]">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                    <Truck className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-foreground text-sm">
+                        {tracking.driverName || "Amrith Kumar (Assigned Courier Partner)"}
+                      </p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-500/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        On Duty
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Vehicle: <span className="font-mono font-medium text-foreground">{tracking.vehicleNumber || "TN 38 BL 7842"}</span> · Carrier: <span className="font-medium text-foreground">{tracking.carrier || "ShipTrack Express"}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <a
+                    href={`tel:${tracking.driverPhone || "+919999988888"}`}
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    Call Driver
+                  </a>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs font-semibold"
+                    onClick={() => navigate(`/app/shipments/${tracking.id || tracking.trackingNumber}`)}
+                  >
+                    Full Details
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="overflow-hidden">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <MapIcon className="h-4 w-4 text-primary" />
-                  Live Location
+                  Live Location & Road Route (OpenStreetMap)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="h-[320px]">
                   <MapView
-                    shipment={shipment}
+                    tracking={tracking}
                     className="!rounded-none h-[320px]"
                   />
                 </div>

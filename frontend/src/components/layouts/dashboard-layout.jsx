@@ -30,7 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { timeAgo } from "@/lib/utils";
 import { useMarkAllNotificationsRead } from "@/lib/hooks";
 
@@ -87,6 +87,10 @@ export function DashboardLayout() {
 function SidebarContent({ sections, onNavigate }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const avatarUrl =
+    user?.avatar ||
+    user?.profileImage ||
+    (user?.id ? localStorage.getItem(`avatar_${user.id}`) : null);
 
   return (
     <div className="flex flex-col h-full">
@@ -130,7 +134,14 @@ function SidebarContent({ sections, onNavigate }) {
       {/* Sidebar Footer User Info */}
       <div className="border-t border-sidebar-border/80 p-3 bg-white/[0.02]">
         <div className="flex items-center gap-3 rounded-xl p-2 bg-white/[0.04] border border-white/5">
-          <Avatar className="h-9 w-9 border border-white/20 shrink-0">
+          <Avatar className="h-9 w-9 border border-white/20 shrink-0 overflow-hidden">
+            {avatarUrl && (
+              <AvatarImage
+                src={avatarUrl}
+                alt={user.name}
+                className="object-cover h-full w-full"
+              />
+            )}
             <AvatarFallback className="bg-primary/20 text-xs font-extrabold text-white">
               {initials(user.name)}
             </AvatarFallback>
@@ -193,6 +204,10 @@ function Topbar({ onMenuClick }) {
   const navigate = useNavigate();
   const { data: notifications } = useNotifications();
   const markAllRead = useMarkAllNotificationsRead();
+  const avatarUrl =
+    user?.avatar ||
+    user?.profileImage ||
+    (user?.id ? localStorage.getItem(`avatar_${user.id}`) : null);
 
   const unread = notifications?.filter((n) => !n.read) ?? [];
 
@@ -310,7 +325,14 @@ function Topbar({ onMenuClick }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/60 p-1 pl-1.5 pr-2.5 shadow-2xs transition hover:border-border hover:bg-card">
-              <Avatar className="h-7 w-7 border border-primary/20">
+              <Avatar className="h-7 w-7 border border-primary/20 overflow-hidden">
+                {avatarUrl && (
+                  <AvatarImage
+                    src={avatarUrl}
+                    alt={user.name}
+                    className="object-cover h-full w-full"
+                  />
+                )}
                 <AvatarFallback className="bg-primary/10 text-[11px] font-bold text-primary">
                   {initials(user.name)}
                 </AvatarFallback>

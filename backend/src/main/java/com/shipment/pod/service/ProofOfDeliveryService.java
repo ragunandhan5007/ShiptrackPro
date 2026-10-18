@@ -73,11 +73,20 @@ public ProofOfDelivery create(
         );
     }
 
-    // Prevent duplicate POD for same shipment
-    if (repository.findByShipmentId(request.getShipmentId()).isPresent()) {
-        throw new RuntimeException(
-                "Proof of Delivery already exists for this shipment."
-        );
+    String photoUrl = cloudinaryService.uploadImage(photo);
+
+    // If POD already exists, update it with new photo and signature
+    var existingOpt = repository.findByShipmentId(request.getShipmentId());
+    if (existingOpt.isPresent()) {
+        ProofOfDelivery existing = existingOpt.get();
+        existing.setRecipientName(request.getRecipientName());
+        existing.setRecipientPhone(request.getRecipientPhone());
+        existing.setDeliveryNotes(request.getDeliveryNotes());
+        existing.setPhotoUrl(photoUrl);
+        existing.setSignatureUrl(request.getSignatureUrl());
+        existing.setCapturedAt(LocalDateTime.now());
+        existing.setVerificationStatus("PENDING");
+        return repository.save(existing);
     }
 
 //    if (shipment.getDriverId() == null) {
@@ -91,7 +100,6 @@ public ProofOfDelivery create(
 //                "You are not assigned to this shipment."
 //        );
 //    }
-    String photoUrl = cloudinaryService.uploadImage(photo);
         ProofOfDelivery pod = ProofOfDelivery.builder()
                 .shipmentId(request.getShipmentId())
                 .recipientName(request.getRecipientName())
@@ -122,9 +130,10 @@ public ProofOfDelivery create(
         ShipmentAnalyticsDataResponse shipment =
                 shipmentClient.getShipmentForVerification(shipmentId);
 
-        // ADMIN and SUPPORT_AGENT can view any POD
+        // ADMIN, SUPPORT_AGENT, and LOGISTICS_OPERATOR can view any POD
         if ("ADMIN".equalsIgnoreCase(currentUser.getRole())
-                || "SUPPORT_AGENT".equalsIgnoreCase(currentUser.getRole())) {
+                || "SUPPORT_AGENT".equalsIgnoreCase(currentUser.getRole())
+                || "LOGISTICS_OPERATOR".equalsIgnoreCase(currentUser.getRole())) {
             return repository.findByShipmentId(shipmentId)
                     .orElseThrow(() ->
                             new RuntimeException("Proof of Delivery not found.")
@@ -440,9 +449,10 @@ public List<ProofOfDeliveryResponse> getAll() {
 
                 boolean allowed = false;
 
-                // Admin and Support Agent sees every POD
+                // Admin, Support Agent, and Logistics Operator see all PODs
                 if ("ADMIN".equalsIgnoreCase(currentUser.getRole())
-                        || "SUPPORT_AGENT".equalsIgnoreCase(currentUser.getRole())) {
+                        || "SUPPORT_AGENT".equalsIgnoreCase(currentUser.getRole())
+                        || "LOGISTICS_OPERATOR".equalsIgnoreCase(currentUser.getRole())) {
                     allowed = true;
                 }
 
@@ -453,14 +463,6 @@ public List<ProofOfDeliveryResponse> getAll() {
                                     && shipment.getBusinessClientId()
                                     .equals(currentUser.getId());
                 }
-
-//                // Operator sees PODs only for shipments assigned to them
-//                else if ("LOGISTICS_OPERATOR".equalsIgnoreCase(currentUser.getRole())) {
-//                    allowed =
-//                            shipment.getDriverId() != null
-//                                    && shipment.getDriverId()
-//                                    .equals(currentUser.getId());
-//                }
 
                 // Customer sees PODs only for their shipments
                 else if ("CUSTOMER".equalsIgnoreCase(currentUser.getRole())) {

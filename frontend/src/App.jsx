@@ -32,6 +32,8 @@ import { ReportsPage } from "@/pages/reports";
 
 import { DeliveryReportsPage } from "@/pages/delivery-reports";
 import { CreateShipmentPage } from "@/pages/create-shipment";
+import { TrackPage } from "@/pages/track";
+import LiveMapPage from "@/pages/live-map";
 
 import { ShipmentHistoryPage } from "@/pages/shipment-history";
 import { BusinessReportsPage } from "@/pages/business-reports";
@@ -61,6 +63,7 @@ export default function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/track" element={<TrackPage />} />
             </Route>
 
             {/* Authenticated routes */}
@@ -95,6 +98,10 @@ export default function App() {
 
                 <Route
                   path="customer/pod/:shipmentId"
+                  element={<CustomerPodUploadPage />}
+                />
+                <Route
+                  path="operator/pod/:shipmentId"
                   element={<CustomerPodUploadPage />}
                 />
 
@@ -132,6 +139,9 @@ export default function App() {
                   element={<BusinessReportsPage />}
                 />
                 <Route path="deliveries" element={<MyDeliveriesPage />} />
+                <Route path="track" element={<TrackPage />} />
+                <Route path="map" element={<Navigate to="/app/routes" replace />} />
+                <Route path="live-map" element={<Navigate to="/app/routes" replace />} />
               </Route>
             </Route>
 

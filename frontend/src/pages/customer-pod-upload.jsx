@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import SignaturePad from "signature_pad";
 import { toast } from "sonner";
+import { useAuth } from "@/context/auth-context";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -28,6 +29,7 @@ import { LoadingState } from "@/components/shared/states";
 export default function CustomerPodUploadPage() {
   const { shipmentId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const shipment = useShipment(shipmentId);
 
@@ -109,7 +111,11 @@ export default function CustomerPodUploadPage() {
 
       toast.success("Proof of Delivery submitted successfully.");
 
-      navigate("/app/customer/dashboard");
+      if (user?.role === "logistics_operator") {
+        navigate("/app/pod");
+      } else {
+        navigate("/app/customer/dashboard");
+      }
     } catch (error) {
       console.error("POD upload failed:", error);
 
@@ -148,16 +154,17 @@ export default function CustomerPodUploadPage() {
 
   const currentShipment = shipment.data;
 
-  if (currentShipment.status?.toUpperCase() !== "DELIVERED") {
+  const st = currentShipment.status?.toUpperCase();
+  if (st !== "DELIVERED" && st !== "OUT_FOR_DELIVERY") {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <Package className="mx-auto h-10 w-10 text-muted-foreground" />
 
-          <p className="mt-3 font-semibold">Shipment is not delivered yet</p>
+          <p className="mt-3 font-semibold">Shipment is not ready for POD</p>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            Proof of Delivery can be submitted after the shipment is delivered.
+            Proof of Delivery can be submitted once the package is out for delivery or delivered.
           </p>
 
           <Button asChild variant="outline" className="mt-4">

@@ -237,7 +237,7 @@ export function CreateShipmentPage() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Create Shipment"
-        description="Book a new shipment in a few simple steps"
+        description="Book a new consignment for domestic or express delivery"
         icon={Package}
       />
 

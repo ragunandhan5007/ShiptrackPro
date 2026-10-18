@@ -31,9 +31,14 @@ public class CustomUserDetailsService
                         )
                 );
 
+        boolean isActive = Boolean.TRUE.equals(user.getActive());
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPasswordHash(),
+                isActive,
+                true,
+                true,
+                isActive,
                 List.of(
                         new SimpleGrantedAuthority(
                                 "ROLE_" + user.getRole().name()

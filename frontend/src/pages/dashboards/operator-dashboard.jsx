@@ -1,9 +1,11 @@
 import { useAuth } from "@/context/auth-context";
+import { useMemo } from "react";
 import {
   useShipments,
   useNotifications,
   useAcceptShipment,
   useUpdateShipmentStatus,
+  usePodRecords,
 } from "@/lib/hooks";
 import { StatCard } from "@/components/shared/stat-card";
 import { LoadingState } from "@/components/shared/states";
@@ -29,6 +31,8 @@ import {
   Bell,
   Activity,
   MapPin,
+  ClipboardCheck,
+  Camera,
 } from "lucide-react";
 
 const STATUS_FLOW = [
@@ -82,7 +86,17 @@ export default function OperatorDashboard() {
   const notifications = useNotifications();
   const acceptShipment = useAcceptShipment();
   const updateShipmentStatus = useUpdateShipmentStatus();
+  const podQuery = usePodRecords();
   const isLoading = shipments.isLoading;
+
+  const podMap = useMemo(() => {
+    const map = new Map();
+    podQuery.data?.forEach((r) => {
+      if (r.shipmentId) map.set(Number(r.shipmentId), r);
+      if (r.trackingNumber) map.set(r.trackingNumber, r);
+    });
+    return map;
+  }, [podQuery.data]);
 
   const assigned = shipments.data ?? [];
   const pending = assigned.filter(
@@ -115,7 +129,7 @@ export default function OperatorDashboard() {
     return (
       <div className="space-y-6 animate-fade-in">
         <OperatorHeader
-          userName={user.name ?? user.firstName}
+          userName={user?.name ?? user?.firstName ?? "Operator"}
           activeCount={0}
         />
         <LoadingState label="Loading your delivery assignments..." />
@@ -126,7 +140,7 @@ export default function OperatorDashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <OperatorHeader
-        userName={user.name ?? user.firstName}
+        userName={user?.name ?? user?.firstName ?? "Operator"}
         activeCount={active.length}
       />
 
@@ -267,28 +281,79 @@ export default function OperatorDashboard() {
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {delivered.slice(0, 6).map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between rounded-xl border border-border/70 bg-card p-3 shadow-2xs hover:border-emerald-500/40 transition"
-                >
-                  <div className="min-w-0">
-                    <Link
-                      to={`/app/shipments/${s.id}`}
-                      className="font-mono text-xs font-bold text-foreground hover:text-primary transition-colors"
-                    >
-                      {s.trackingNumber}
-                    </Link>
-                    <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">
-                      {s.senderCity} → {s.receiverCity}
-                    </p>
+              {delivered.slice(0, 6).map((s) => {
+                const pod = podMap.get(s.id) || podMap.get(s.trackingNumber);
+                const isVerified = pod && (pod.verificationStatus === "VERIFIED" || pod.verificationStatus === "verified");
+
+                return (
+                  <div
+                    key={s.id}
+                    className="flex flex-col gap-2.5 rounded-xl border border-border/70 bg-card p-3.5 shadow-2xs hover:border-emerald-500/40 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <Link
+                          to={`/app/shipments/${s.id}`}
+                          className="font-mono text-xs font-bold text-foreground hover:text-primary transition-colors"
+                        >
+                          {s.trackingNumber}
+                        </Link>
+                        <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">
+                          {s.senderCity} → {s.receiverCity}
+                        </p>
+                      </div>
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Delivered
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2">
+                      {pod ? (
+                        <>
+                          <span className={cn(
+                            "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border",
+                            isVerified
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          )}>
+                            <ClipboardCheck className="h-3 w-3" />
+                            {isVerified ? "POD Verified" : "POD Submitted"}
+                          </span>
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs font-bold text-primary hover:text-primary hover:bg-primary/10 px-2"
+                          >
+                            <Link to={`/app/pod`}>
+                              View Proof →
+                            </Link>
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                            <Clock className="h-3 w-3" />
+                            POD Pending
+                          </span>
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs font-bold text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 px-2.5"
+                          >
+                            <Link to={`/app/customer/pod/${s.id}`}>
+                              <Camera className="mr-1 h-3 w-3" />
+                              Submit POD
+                            </Link>
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Delivered
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -316,6 +381,13 @@ function OperatorHeader({ userName, activeCount }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Button asChild size="sm" variant="outline" className="h-9 gap-1.5 font-bold shadow-2xs border-border/80">
+            <Link to="/app/pod">
+              <ClipboardCheck className="h-4 w-4 text-emerald-600" />
+              Proof of Delivery (POD)
+            </Link>
+          </Button>
+
           <div
             className={cn(
               "flex items-center gap-2 rounded-xl border px-3 py-1.5 shadow-2xs",
@@ -467,17 +539,30 @@ function AssignmentCard({ shipment, acceptShipment, updateShipmentStatus }) {
               Cancelled by Customer
             </Button>
           ) : (
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              className="w-full text-xs font-semibold"
-            >
-              <Link to={`/app/operator/navigation/${shipment.id}`}>
-                <Navigation className="mr-1.5 h-3.5 w-3.5 text-primary" />
-                Open Live Navigation
-              </Link>
-            </Button>
+            <>
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="flex-1 text-xs font-semibold"
+              >
+                <Link to={`/app/routes?id=${shipment.id}`}>
+                  <Navigation className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                  Navigation
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="flex-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 border-emerald-500/30"
+              >
+                <Link to={`/app/customer/pod/${shipment.id}`}>
+                  <Camera className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                  Upload POD
+                </Link>
+              </Button>
+            </>
           )}
         </div>
       )}

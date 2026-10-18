@@ -24,7 +24,7 @@ import {
 
 export default function CustomerDashboard() {
   const { user } = useAuth();
-  const myShipments = useMyShipments(user.id);
+  const myShipments = useMyShipments(user?.id);
   
   const isLoading = myShipments.isLoading;
   

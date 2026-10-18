@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/context/auth-context";
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { initials, formatDate } from "@/lib/utils";
@@ -31,6 +31,11 @@ import { toast } from "sonner";
 
 export function ProfilePage() {
   const { user, updateProfile } = useAuth();
+  const fileInputRef = useRef(null);
+
+  const [avatarUrl, setAvatarUrl] = useState(
+    user?.avatar || user?.profileImage || (user?.id ? localStorage.getItem(`avatar_${user.id}`) : null)
+  );
 
   const [form, setForm] = useState({
     name: user?.name ?? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
@@ -51,10 +56,51 @@ export function ProfilePage() {
     );
   }
 
+  const handleAvatarFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (JPG, PNG, WEBP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result;
+      setAvatarUrl(base64);
+
+      if (user?.id) {
+        localStorage.setItem(`avatar_${user.id}`, base64);
+      }
+
+      try {
+        await updateProfile({
+          ...form,
+          avatar: base64,
+          profileImage: base64,
+        });
+        toast.success("Profile photo updated successfully!");
+      } catch (err) {
+        toast.success("Profile photo saved locally!");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateProfile(form);
+      await updateProfile({
+        ...form,
+        avatar: avatarUrl,
+        profileImage: avatarUrl,
+      });
       toast.success("Profile updated successfully");
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update profile");
@@ -75,17 +121,35 @@ export function ProfilePage() {
         {/* Sidebar */}
         <Card className="lg:col-span-1">
           <CardContent className="flex flex-col items-center pt-6 text-center">
-            <div className="relative">
-              <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-                {/* <AvatarFallback className="bg-primary text-2xl font-bold text-primary-foreground">
-                  {initials(user.name)}
-                </AvatarFallback> */}
+            <div className="relative group">
+              <Avatar className="h-24 w-24 border-4 border-background shadow-lg overflow-hidden">
+                {avatarUrl && (
+                  <AvatarImage
+                    src={avatarUrl}
+                    alt={user.name ?? `${user.firstName} ${user.lastName}`}
+                    className="object-cover h-full w-full"
+                  />
+                )}
                 <AvatarFallback className="bg-primary text-2xl font-bold text-primary-foreground">
                   {initials(user.name ?? `${user.firstName} ${user.lastName}`)}
                 </AvatarFallback>
               </Avatar>
-              <button className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card shadow-md transition hover:bg-muted">
-                <Camera className="h-4 w-4 text-muted-foreground" />
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFile}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload Profile Picture"
+                className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card shadow-md transition hover:bg-primary hover:text-white cursor-pointer ring-2 ring-background z-10"
+              >
+                <Camera className="h-4 w-4" />
               </button>
             </div>
             {/* <h2 className="mt-4 text-lg font-bold">{user.name}</h2> */}

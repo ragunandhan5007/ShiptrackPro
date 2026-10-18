@@ -115,6 +115,12 @@ public class AdminServiceImpl implements AdminService {
                         )
                 );
 
+        if (user.getRole() == UserRole.ADMIN) {
+            throw new IllegalArgumentException(
+                    "Administrator accounts cannot be suspended."
+            );
+        }
+
         user.setActive(false);
 
         userRepository.save(user);

@@ -946,15 +946,34 @@ public Shipment acceptShipment(Long shipmentId) {
     }
 
     public TrackingResponse getTrackingDetails(
-            Long shipmentId
+            String identifier
     ) {
+        Shipment shipment = null;
+        try {
+            Long shipmentId = Long.parseLong(identifier.trim());
+            shipment = shipmentRepository.findById(shipmentId).orElse(null);
+        } catch (NumberFormatException ignored) {}
 
-        Shipment shipment =
-                getShipmentById(shipmentId);
+        if (shipment == null) {
+            shipment = shipmentRepository.findByTrackingNumber(identifier.trim()).orElse(null);
+        }
+
+        if (shipment == null) {
+            shipment = shipmentRepository.findAll().stream()
+                    .filter(s -> s.getTrackingNumber() != null && s.getTrackingNumber().equalsIgnoreCase(identifier.trim()))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Shipment not found with identifier: " + identifier));
+        }
 
         return routeService.getTrackingDetails(
                 shipment
         );
+    }
+
+    public TrackingResponse getTrackingDetails(
+            Long shipmentId
+    ) {
+        return getTrackingDetails(String.valueOf(shipmentId));
     }
 
 

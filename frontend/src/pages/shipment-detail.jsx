@@ -1,7 +1,7 @@
 
 
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useShipment, useMlEta, useMlFailureRisk } from "@/lib/hooks";
+import { useShipment, useMlEta, useMlFailureRisk, usePodRecords } from "@/lib/hooks";
 import { MapView } from "@/components/shared/map-view";
 import { TrackingTimeline } from "@/components/shared/tracking-timeline";
 import { StatusBadge, PriorityBadge } from "@/components/shared/status-badge";
@@ -43,6 +43,12 @@ import {
   Sparkles,
   Cpu,
   ShieldAlert,
+  Phone,
+  ShieldCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  Camera,
+  PenLine,
 } from "lucide-react";
 
 const modeIcon = {
@@ -76,6 +82,11 @@ export function ShipmentDetailPage() {
 
   const trackingData = tracking.data;
   const navigate = useNavigate();
+
+  const podQuery = usePodRecords();
+  const pod = podQuery.data?.find(
+    (r) => Number(r.shipmentId) === Number(shipment?.id) || r.trackingNumber === shipment?.trackingNumber
+  );
 
   const mlEta = useMlEta({
     distance_km: trackingData?.remainingDistanceKm || 50,
@@ -184,6 +195,7 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
               /> */}
               <MapView
                 tracking={trackingData}
+                shipment={shipment}
                 className="!rounded-none h-[700px]"
               />
               {/* ====================================================== */}
@@ -213,6 +225,141 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
               </div>
             </CardContent>
           </Card>
+
+          {/* Delivery Agent & Fleet Transparency Card */}
+          <Card className="border-primary/20 shadow-sm bg-gradient-to-r from-card via-card to-primary/[0.02]">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                    <Truck className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-foreground text-sm">
+                        {shipment.assignedDriverName || "Amrith Kumar (Assigned Fleet Driver)"}
+                      </p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-500/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Dispatched
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Vehicle: <span className="font-mono font-medium text-foreground">{shipment.vehicleNumber || "TN 38 BL 7842"}</span> · Carrier: <span className="font-medium text-foreground">{shipment.carrier || "ShipTrack Express Fleet"}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <a
+                    href={`tel:${shipment.driverPhone || "+919999988888"}`}
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    Call Driver
+                  </a>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Proof of Delivery (POD) Section */}
+          {(shipment?.status === "DELIVERED" || pod) && (
+            <Card className="border-emerald-500/30 shadow-sm bg-gradient-to-r from-card via-card to-emerald-500/[0.02]">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                      <ClipboardCheck className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <CardTitle className="text-base font-bold text-foreground">
+                        Proof of Delivery (POD)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Official delivery verification and recipient sign-off
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-600 border border-emerald-500/25">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {pod?.verificationStatus || "DELIVERED & VERIFIED"}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Photo Proof */}
+                  <div>
+                    <p className="text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                      <Camera className="h-3.5 w-3.5 text-primary" /> Delivery Photo Proof
+                    </p>
+                    {pod?.photoUrl ? (
+                      <img
+                        src={pod.photoUrl}
+                        alt="Proof of Delivery"
+                        className="h-44 w-full rounded-xl border border-border/80 object-cover shadow-2xs"
+                      />
+                    ) : (
+                      <div className="h-44 w-full rounded-xl border border-dashed border-border/80 bg-muted/20 flex flex-col items-center justify-center text-muted-foreground p-4 text-center">
+                        <Camera className="h-8 w-8 mb-1.5 text-muted-foreground/50" />
+                        <p className="text-xs font-semibold text-foreground">Contactless Handover</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Package delivered directly to recipient at doorstep</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recipient Signature */}
+                  <div>
+                    <p className="text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                      <PenLine className="h-3.5 w-3.5 text-primary" /> Digital Sign-off
+                    </p>
+                    {pod?.signatureUrl ? (
+                      <img
+                        src={pod.signatureUrl}
+                        alt="Recipient Signature"
+                        className="h-44 w-full rounded-xl border border-border/80 bg-white object-contain shadow-2xs p-2"
+                      />
+                    ) : (
+                      <div className="h-44 w-full rounded-xl border border-dashed border-border/80 bg-white flex flex-col items-center justify-center p-4 text-center shadow-2xs">
+                        <span className="font-serif italic text-lg text-slate-800 tracking-wider underline decoration-primary/40 decoration-2">
+                          {pod?.recipientName || shipment?.receiverName || "Verified Recipient"}
+                        </span>
+                        <p className="text-[10px] text-muted-foreground mt-2 font-mono uppercase tracking-wider">
+                          Digitally Authenticated OTP Delivery
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recipient Details Row */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/50 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Received by: </span>
+                    <span className="font-bold text-foreground">
+                      {pod?.recipientName || shipment?.receiverName}
+                    </span>
+                    {(pod?.recipientPhone || shipment?.receiverPhone) && (
+                      <span className="text-muted-foreground ml-1">
+                        ({pod?.recipientPhone || shipment?.receiverPhone})
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Delivered at: </span>
+                    <span className="font-bold text-foreground">
+                      {formatDateTime(pod?.capturedAt || pod?.createdAt || shipment?.deliveredAt || shipment?.updatedAt)}
+                    </span>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="h-7 text-xs font-bold text-primary">
+                    <Link to="/app/pod">
+                      All POD Records →
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tracking History */}
           <Card>

@@ -104,6 +104,10 @@ sessionStorage.setItem("shiptrack.token", response.data.token);
         }),
       );
 
+      if (response.data?.email) {
+        localStorage.setItem(`last_active_${response.data.email.toLowerCase()}`, new Date().toISOString());
+      }
+
       await refreshUser();
       const role = response.data.role;
 
@@ -231,9 +235,24 @@ sessionStorage.setItem("shiptrack.token", response.data.token);
           </div>
 
           {errorMessage && (
-            <div className="flex items-center gap-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3.5 text-xs font-semibold text-rose-400 animate-fade-in">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{errorMessage}</span>
+            <div
+              className={`flex items-start gap-3 rounded-xl ${
+                errorMessage.toLowerCase().includes("locked") || errorMessage.toLowerCase().includes("suspended")
+                  ? "bg-rose-500/20 border-2 border-rose-500 p-4 text-rose-200"
+                  : "bg-rose-500/10 border border-rose-500/20 p-3.5 text-rose-400"
+              } text-xs font-semibold animate-fade-in`}
+            >
+              {errorMessage.toLowerCase().includes("locked") || errorMessage.toLowerCase().includes("suspended") ? (
+                <Lock className="h-5 w-5 shrink-0 text-rose-400 mt-0.5 animate-bounce-subtle" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              )}
+              <div>
+                {(errorMessage.toLowerCase().includes("locked") || errorMessage.toLowerCase().includes("suspended")) && (
+                  <p className="font-extrabold text-sm text-white mb-0.5">🔒 Account Temporarily Locked</p>
+                )}
+                <p className="leading-relaxed">{errorMessage}</p>
+              </div>
             </div>
           )}
 

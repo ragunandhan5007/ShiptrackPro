@@ -50,8 +50,6 @@ export const NAV_BY_ROLE = {
           icon: Package,
           badge: "shipments",
         },
-
-        { label: "Route Management", to: "/app/routes", icon: Route },
         {
           label: "Proof of Delivery",
           to: "/app/pod",
@@ -84,12 +82,18 @@ export const NAV_BY_ROLE = {
           badge: "shipments",
         },
         {
+          label: "Proof of Delivery",
+          to: "/app/pod",
+          icon: ClipboardCheck,
+          badge: "pod",
+        },
+        {
           label: "Delivery Reports",
           to: "/app/delivery-reports",
           icon: FileText,
         },
         {
-          label: "Route Optimizer",
+          label: "Route & Fleet Navigator",
           to: "/app/routes",
           icon: Route,
         },
@@ -136,7 +140,6 @@ export const NAV_BY_ROLE = {
           icon: ClipboardCheck,
           badge: "pod",
         },
-        { label: "Route Management", to: "/app/routes", icon: Route },
       ],
     },
   ],
@@ -151,6 +154,7 @@ export const NAV_BY_ROLE = {
         },
 
         { label: "My Deliveries", to: "/app/deliveries", icon: Package },
+        { label: "Live Package Tracking", to: "/app/track", icon: MapPin },
         { label: "Delivery Reports", to: "/app/delivery-reports", icon: FileText },
         {
           label: "Notifications",
@@ -164,7 +168,6 @@ export const NAV_BY_ROLE = {
           icon: ClipboardCheck,
           badge: "pod",
         },
-        { label: "Route Management", to: "/app/routes", icon: Route },
       ],
     },
     {
@@ -269,7 +272,7 @@ export const PAGE_ACCESS = {
     "support_agent",
   ],
   "/app/eta-prediction": ["admin"],
-  "/app/routes": ["admin", "business_client", "customer", "logistics_operator"],
+  "/app/routes": ["logistics_operator"],
   "/app/pod": ["admin", "logistics_operator", "business_client", "customer"],
   "/app/reports": ["admin"],
   "/app/delivery-reports": [

@@ -42,8 +42,8 @@ export default function BusinessDashboard() {
     return (
       <div className="space-y-6 animate-fade-in">
         <ExecutiveHeader
-          userName={user.name ?? user.firstName}
-          company={user.company ?? user.companyName}
+          userName={user?.name ?? user?.firstName ?? "Business Client"}
+          company={user?.company ?? user?.companyName ?? "Enterprise"}
         />
         <LoadingState label="Loading business dashboard metrics..." />
       </div>
@@ -53,8 +53,8 @@ export default function BusinessDashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <ExecutiveHeader
-        userName={user.name ?? user.firstName}
-        company={user.company ?? user.companyName}
+        userName={user?.name ?? user?.firstName ?? "Business Client"}
+        company={user?.company ?? user?.companyName ?? "Enterprise"}
         delayedCount={delayed.length}
       />
 

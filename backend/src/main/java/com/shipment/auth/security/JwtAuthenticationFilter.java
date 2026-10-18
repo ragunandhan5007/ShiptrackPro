@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter
             System.out.println("TOKEN VALID = " +
                     jwtService.isTokenValid(token));
 
-            if (jwtService.isTokenValid(token)) {
+            if (jwtService.isTokenValid(token) && userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
 
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(

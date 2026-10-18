@@ -75,7 +75,7 @@ export default function SupportDashboard() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Support Desk"
-        description={`Welcome, ${user.name ?? user.firstName} — customer ticket queue & issue resolution`}
+        description={`Welcome, ${user?.name ?? user?.firstName ?? "Support Agent"} — customer ticket queue & issue resolution`}
         icon={Headphones}
         actions={
           <Button asChild variant="brand" size="sm" className="font-bold text-xs">
