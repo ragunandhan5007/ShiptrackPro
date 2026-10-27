@@ -396,13 +396,3 @@ export function useOptimizeRoute() {
     mutationFn: (payload) => mlApi.optimizeRoute(payload),
   });
 }
-
-// 5. Failure & Cancellation Risk Prediction
-export function useMlFailureRisk(params, options = {}) {
-  return useQuery({
-    queryKey: ["ml-failure-risk", params],
-    queryFn: () => mlApi.predictFailureRisk(params),
-    staleTime: 60000,
-    ...options,
-  });
-}

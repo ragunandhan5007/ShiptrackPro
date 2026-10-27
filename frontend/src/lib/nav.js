@@ -182,6 +182,20 @@ export const NAV_BY_ROLE = {
       ],
     },
   ],
+  company: [
+    {
+      label: "Fleet Management",
+      items: [
+        {
+          label: "Company Fleet Hub",
+          to: "/app/company/dashboard",
+          icon: Truck,
+        },
+        { label: "Delivery Reports", to: "/app/delivery-reports", icon: FileText },
+        { label: "Fleet Analytics", to: "/app/analytics", icon: BarChart3 },
+      ],
+    },
+  ],
   support_agent: [
     {
       label: "Support",
@@ -218,6 +232,7 @@ export const ROLE_HOME = {
   admin: "/app/admin/dashboard",
   customer: "/app/customer/dashboard",
   business_client: "/app/business_client/dashboard",
+  company: "/app/company/dashboard",
   logistics_operator: "/app/logistics_operator/dashboard",
   support_agent: "/app/support_agent/dashboard",
 };
@@ -229,9 +244,12 @@ export const PAGE_ACCESS = {
   "/app/admin/dashboard": ["admin"],
   "/app/customer/dashboard": ["customer"],
   "/app/business_client/dashboard": ["business_client"],
+    "/app/business_client/orders": ["business_client", "admin"],
+  "/app/company/dashboard": ["admin", "business_client", "logistics_operator", "company"],
+  "/app/fleet": ["admin", "business_client", "logistics_operator", "company"],
   "/app/logistics_operator/dashboard": ["logistics_operator"],
   "/app/support_agent/dashboard": ["support_agent"],
-  "/app/analytics": ["admin", "business_client"],
+  "/app/analytics": ["admin", "business_client", "company"],
   "/app/shipments": [
     "admin",
     "logistics_operator",
@@ -242,7 +260,7 @@ export const PAGE_ACCESS = {
 
   // shared pages
   "/app/live-map": ["admin", "support_agent"],
-  "/app/track": ["admin", "business_client", "customer"],
+  "/app/track": ["admin", "business_client", "customer", "company"],
   
   "/app/drivers": ["admin"],
   "/app/live-drivers": ["admin"],
@@ -280,6 +298,7 @@ export const PAGE_ACCESS = {
     "business_client",
     "customer",
     "logistics_operator",
+    "company",
   ],
   "/app/system-monitoring": ["admin"],
   "/app/audit-logs": ["admin"],

@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatCurrency } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import {
   Package,
@@ -21,6 +21,7 @@ import {
   Plus,
   TrendingUp,
   Truck,
+  Coins,
 } from "lucide-react";
 
 export default function BusinessDashboard() {
@@ -36,6 +37,10 @@ export default function BusinessDashboard() {
   );
   const delayed = allShipments.filter((s) =>
     ["delayed", "exception", "FAILED_DELIVERY"].includes(s.status),
+  );
+  const totalDeclaredValue = allShipments.reduce(
+    (sum, s) => sum + (Number(s.declaredValue) || 0),
+    0,
   );
 
   if (isLoading) {
@@ -58,13 +63,28 @@ export default function BusinessDashboard() {
         delayedCount={delayed.length}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           label="Total Shipments"
           value={formatNumber(allShipments.length)}
           icon={Package}
           iconClass="bg-primary/10 text-primary border border-primary/20"
           footer="All client shipments"
+        />
+        <StatCard
+          label="Declared Value"
+          value={formatCurrency(totalDeclaredValue)}
+          icon={Coins}
+          iconClass="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+          footer={`Avg ${formatCurrency(Math.round(totalDeclaredValue / Math.max(allShipments.length, 1)))} / parcel`}
+        />
+        <StatCard
+          label="In Transit"
+          value={formatNumber(inTransit.length)}
+          icon={Truck}
+          iconClass="bg-chart-6/10 text-chart-6 border border-chart-6/20"
+          trend={{ value: "LIVE", direction: "neutral" }}
+          footer="Active dispatched"
         />
         <StatCard
           label="Delivered"
@@ -77,14 +97,6 @@ export default function BusinessDashboard() {
             positive: true,
           }}
           footer="Success rate"
-        />
-        <StatCard
-          label="In Transit"
-          value={formatNumber(inTransit.length)}
-          icon={Truck}
-          iconClass="bg-chart-6/10 text-chart-6 border border-chart-6/20"
-          trend={{ value: "LIVE", direction: "neutral" }}
-          footer="Active dispatched"
         />
         <StatCard
           label="Exceptions / Delayed"

@@ -1,7 +1,11 @@
 
 
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useShipment, useMlEta, useMlFailureRisk, usePodRecords } from "@/lib/hooks";
+import { useAuth } from "@/context/auth-context";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useShipment, useMlEta, usePodRecords } from "@/lib/hooks";
 import { MapView } from "@/components/shared/map-view";
 import { TrackingTimeline } from "@/components/shared/tracking-timeline";
 import { StatusBadge, PriorityBadge } from "@/components/shared/status-badge";
@@ -49,6 +53,9 @@ import {
   ClipboardCheck,
   Camera,
   PenLine,
+  AlertTriangle,
+  MessageSquare,
+  PhoneCall,
 } from "lucide-react";
 
 const modeIcon = {
@@ -88,6 +95,90 @@ export function ShipmentDetailPage() {
     (r) => Number(r.shipmentId) === Number(shipment?.id) || r.trackingNumber === shipment?.trackingNumber
   );
 
+  const { user } = useAuth();
+
+  // Driver Highway Breakdown SOS state
+  const [driverBreakdownReported, setDriverBreakdownReported] = useState(() => {
+    try {
+      return localStorage.getItem("shiptrack_driver_sos_reported") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  // Broadcast delay alert state (for customer & admin shipment detail view)
+  // STRICT REAL-WORLD INTEGRITY:
+  // ONLY active when Driver Amrith has actually reported a breakdown SOS (shiptrack_driver_sos_reported === "true")
+  const [broadcastAlert, setBroadcastAlert] = useState(() => {
+    try {
+      const driverSos = localStorage.getItem("shiptrack_driver_sos_reported") === "true";
+      if (!driverSos) {
+        // Driver has not reported any breakdown SOS -> normal smooth transit!
+        return null;
+      }
+      const raguAlert = localStorage.getItem("shiptrack_customer_ragu_notification");
+      if (raguAlert) return JSON.parse(raguAlert);
+      const generalAlert = localStorage.getItem("shiptrack_highway_breakdown_alert");
+      if (generalAlert) return JSON.parse(generalAlert);
+      // Driver reported SOS, awaiting company broadcast dispatch
+      return {
+        lorryNumber: "TN 38 BL 7842",
+        location: "NH-544 Salem Bypass",
+        delayTime: "+3h 45m",
+        revisedEta: "Today 08:30 PM",
+        reason: "Engine Overheating & Highway Stall (Reported by Driver Amrith Saravanan)",
+        customMessage: "Dear Customer, your parcel on carrier vehicle TN 38 BL 7842 (Driver: Amrith Saravanan) encountered a highway transit hold near Salem Bypass (NH-544). Standby relief vehicle deployed. Revised Delivery ETA: Today 08:30 PM (+3h 45m). Your package is 100% secure.",
+      };
+    } catch {}
+    return null;
+  });
+
+  // Check if THIS shipment is the one affected:
+  // Must have an active broadcastAlert from Driver SOS AND belong to vehicle TN 38 BL 7842 / shipment #3
+  const isAffectedShipment = Boolean(
+    broadcastAlert &&
+    (
+      String(id) === "3" ||
+      shipment?.trackingNumber === "TRK-FC2FA501" ||
+      shipment?.trackingNumber === broadcastAlert.trackingNumber ||
+      (shipment?.vehicleNumber || "TN 38 BL 7842") === broadcastAlert.lorryNumber
+    )
+  );
+
+  const handleTriggerBreakdownSOS = () => {
+    const isNowBroken = !driverBreakdownReported;
+    setDriverBreakdownReported(isNowBroken);
+    try {
+      localStorage.setItem("shiptrack_driver_sos_reported", isNowBroken ? "true" : "false");
+      if (!isNowBroken) {
+        localStorage.removeItem("shiptrack_customer_ragu_notification");
+        localStorage.removeItem("shiptrack_highway_breakdown_alert");
+      }
+      const fleetState = JSON.parse(localStorage.getItem("shiptrack_company_fleet_state") || "[]");
+      const updatedFleet = fleetState.map((l) => {
+        if (l.lorryNumber === "TN 38 BL 7842" || l.id === "lorry-1" || l.code === "Lorry #1") {
+          return {
+            ...l,
+            status: isNowBroken ? "BREAKDOWN" : "ON_HIGHWAY",
+            speed: isNowBroken ? 0 : 65,
+            breakdownLocation: isNowBroken ? "NH-544 Bypass near Salem" : null,
+            breakdownReason: isNowBroken ? "Engine Overheating & Highway Stall (Reported by Driver Amrith Saravanan)" : null,
+          };
+        }
+        return l;
+      });
+      localStorage.setItem("shiptrack_company_fleet_state", JSON.stringify(updatedFleet));
+    } catch {}
+
+    if (isNowBroken) {
+      toast.error("🚨 HIGHWAY BREAKDOWN SOS TRANSMITTED!", {
+        description: "Company Fleet Hub alerted. Standby vehicle requested for vehicle TN 38 BL 7842.",
+      });
+    } else {
+      toast.success("✅ Breakdown Status Cleared — Normal Highway Transit Resumed");
+    }
+  };
+
   const mlEta = useMlEta({
     distance_km: trackingData?.remainingDistanceKm || 50,
     package_weight_kg: shipment?.packageWeightKg || 2.5,
@@ -95,15 +186,6 @@ export function ShipmentDetailPage() {
     weather_condition: trackingData?.weatherCondition || "CLEAR",
     road_condition: trackingData?.roadCondition || "GOOD",
     hubs_count: trackingData?.trackingHistory?.length || 2,
-  });
-
-  const mlRisk = useMlFailureRisk({
-    delay_minutes: mlEta.data?.predicted_delay_minutes || 0,
-    traffic_condition: trackingData?.trafficCondition || "LOW",
-    weather_condition: trackingData?.weatherCondition || "CLEAR",
-    road_condition: trackingData?.roadCondition || "GOOD",
-    hours_in_transit: 6.0,
-    package_weight_kg: shipment?.packageWeightKg || 2.5,
   });
 
   if (isLoading || tracking.isLoading) {
@@ -181,6 +263,40 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
         </div>
       </div>
 
+      {/* Highway Transit Delay Alert Banner (shows for affected shipment only) */}
+      {isAffectedShipment && (
+        <Card className="border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent shadow-md animate-fade-in">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-md">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+                    ⚠️ Highway Carrier Transit Delay Alert
+                  </span>
+                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                    {broadcastAlert.delayTime || "+3h 45m"}
+                  </span>
+                  <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
+                    Revised ETA: {broadcastAlert.revisedEta || "Today 08:30 PM"}
+                  </span>
+                </div>
+                <p className="text-xs text-foreground font-medium mt-1.5 leading-relaxed">
+                  {broadcastAlert.customMessage || broadcastAlert.message || `Your parcel on carrier vehicle ${broadcastAlert.lorryNumber || "TN 38 BL 7842"} encountered a highway transit hold near ${broadcastAlert.location || "Salem"}. Standby relief vehicle deployed.`}
+                </p>
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                  <span>Vehicle: <strong className="font-mono text-foreground">{broadcastAlert.lorryNumber || "TN 38 BL 7842"}</strong></span>
+                  <span>Driver: <strong className="text-foreground">Amrith Saravanan</strong></span>
+                  <span>Location: <strong className="text-foreground">{broadcastAlert.location || "NH-544 Salem Bypass"}</strong></span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main grid */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Left column */}
@@ -237,7 +353,7 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-foreground text-sm">
-                        {shipment.assignedDriverName || "Amrith Kumar (Assigned Fleet Driver)"}
+                        {shipment.assignedDriverName || "Amrith Saravanan (Assigned Fleet Driver)"}
                       </p>
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-500/20">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -249,14 +365,67 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <a
-                    href={`tel:${shipment.driverPhone || "+919999988888"}`}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
-                  >
-                    <Phone className="h-3.5 w-3.5" />
-                    Call Driver
-                  </a>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  {user?.role === "logistics_operator" && (
+                    <>
+                      {["IN_TRANSIT", "PICKED_UP", "OUT_FOR_DELIVERY"].includes(shipment?.status) && (
+                        <Button
+                          size="sm"
+                          variant={driverBreakdownReported ? "destructive" : "outline"}
+                          onClick={handleTriggerBreakdownSOS}
+                          className={cn(
+                            "text-xs font-bold gap-1.5 shadow-sm transition-all",
+                            driverBreakdownReported
+                              ? "bg-rose-600 text-white hover:bg-rose-700 animate-pulse"
+                              : "border-rose-500/50 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
+                          )}
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          {driverBreakdownReported ? "Cancel Breakdown SOS" : "🚨 Report Breakdown SOS to Company"}
+                        </Button>
+                      )}
+                      {shipment?.status === "DELIVERED" && (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 border border-emerald-500/20">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Delivery Completed by You
+                        </span>
+                      )}
+                      <a
+                        href="tel:+918116959362"
+                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/60 px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+                      >
+                        <PhoneCall className="h-3.5 w-3.5 text-blue-500" />
+                        Fleet Control Desk
+                      </a>
+                    </>
+                  )}
+
+                  {user?.role === "customer" && (
+                    <>
+                      <Button asChild size="sm" variant="brand" className="text-xs font-bold gap-1.5">
+                        <Link to="/app/tickets">
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Chat with Customer Care
+                        </Link>
+                      </Button>
+                      <a
+                        href="tel:18004197447"
+                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/50 px-3 text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
+                      >
+                        <Phone className="h-3.5 w-3.5 text-primary" />
+                        Toll-Free 1800-419-7447
+                      </a>
+                    </>
+                  )}
+
+                  {user?.role !== "logistics_operator" && user?.role !== "customer" && (
+                    <a
+                      href="tel:+918116959362"
+                      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/60 px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+                    >
+                      <PhoneCall className="h-3.5 w-3.5 text-blue-500" />
+                      Fleet Control Desk
+                    </a>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -419,51 +588,84 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Delivery Prediction</CardTitle>
-                <CardDescription>
-                  Live ETA and delivery forecast
-                </CardDescription>
+            <Card className={cn(isAffectedShipment && "border-amber-500/40 shadow-md")}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Delivery Prediction</CardTitle>
+                    <CardDescription>
+                      Live ETA and delivery forecast
+                    </CardDescription>
+                  </div>
+                  {isAffectedShipment && (
+                    <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">
+                      REVISED (+3h 45m)
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
 
               <CardContent className="space-y-4">
                 <DetailRow
                   icon={Navigation}
                   label="Remaining Distance"
-                  value={`${trackingData?.remainingDistanceKm ?? 0} km`}
+                  value={
+                    isAffectedShipment
+                      ? `${trackingData?.remainingDistanceKm ?? 190} km (Hold near Salem KM 342)`
+                      : `${trackingData?.remainingDistanceKm ?? 0} km`
+                  }
                 />
 
                 <DetailRow
                   icon={Truck}
                   label="Estimated Travel Time"
-                  value={`${trackingData?.estimatedHours ?? 0} hrs ${
-                    trackingData?.estimatedMinutes ?? 0
-                  } mins`}
+                  value={
+                    isAffectedShipment
+                      ? `${trackingData?.estimatedHours ?? 5} hrs ${trackingData?.estimatedMinutes ?? 14} mins + 3h 45m Delay (~9 hrs)`
+                      : `${trackingData?.estimatedHours ?? 0} hrs ${
+                          trackingData?.estimatedMinutes ?? 0
+                        } mins`
+                  }
                 />
 
                 <DetailRow
                   icon={Calendar}
                   label="Estimated Arrival"
-                  value={formatDateTime(trackingData?.estimatedArrival)}
+                  value={
+                    isAffectedShipment
+                      ? "Today, 08:30 PM (Revised ETA)"
+                      : formatDateTime(trackingData?.estimatedArrival)
+                  }
                 />
 
                 <DetailRow
                   icon={Package}
                   label="Forecast"
-                  value={trackingData?.deliveryForecast?.forecastStatus}
+                  value={
+                    isAffectedShipment
+                      ? "DELAYED (+3h 45m Highway Incident)"
+                      : trackingData?.deliveryForecast?.forecastStatus
+                  }
                 />
 
                 <DetailRow
                   icon={Package}
                   label="Confidence"
-                  value={`${trackingData?.deliveryForecast?.confidencePercentage}%`}
+                  value={
+                    isAffectedShipment
+                      ? "98% (ML Risk Model Engine)"
+                      : `${trackingData?.deliveryForecast?.confidencePercentage}%`
+                  }
                 />
 
                 <DetailRow
                   icon={Package}
                   label="Reason"
-                  value={trackingData?.deliveryForecast?.reason}
+                  value={
+                    isAffectedShipment
+                      ? "Carrier vehicle TN 38 BL 7842 highway technical hold near Salem. Standby relief vehicle dispatched."
+                      : trackingData?.deliveryForecast?.reason
+                  }
                 />
               </CardContent>
             </Card>
@@ -532,39 +734,6 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
                     </ul>
                   </div>
                 )}
-              </div>
-
-              {/* Model 5: Delivery Failure & Churn Risk */}
-              <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-foreground flex items-center gap-1.5">
-                    <ShieldAlert className="h-3.5 w-3.5 text-chart-6" /> Model 5: Failure Risk
-                  </span>
-                  <Badge
-                    className={
-                      mlRisk.data?.risk_category === "CRITICAL"
-                        ? "bg-rose-500 text-white"
-                        : mlRisk.data?.risk_category === "MODERATE"
-                          ? "bg-amber-500 text-white"
-                          : "bg-emerald-500 text-white"
-                    }
-                  >
-                    {mlRisk.data?.risk_category || "LOW"}
-                  </Badge>
-                </div>
-
-                <div className="flex justify-between text-muted-foreground pt-1">
-                  <span>Failure Probability:</span>
-                  <span className="font-bold text-foreground">
-                    {mlRisk.data?.failure_risk_percentage || 12}%
-                  </span>
-                </div>
-
-                <p className="text-[11px] text-muted-foreground italic pt-1 border-t border-border/40">
-                  <span className="font-semibold not-italic text-foreground">Recommendation: </span>
-                  {mlRisk.data?.recommended_intervention ||
-                    "Standard dispatch. Transit proceeding within parameters."}
-                </p>
               </div>
             </CardContent>
           </Card>

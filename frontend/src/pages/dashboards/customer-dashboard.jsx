@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/auth-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useMyShipments,
   useCancelShipmentByCustomer,
@@ -20,11 +20,34 @@ import {
   Search,
   ChevronRight,
   PackageX,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function CustomerDashboard() {
   const { user } = useAuth();
   const myShipments = useMyShipments(user?.id);
+
+  // Broadcast & Breakdown Delay Alert for Customer Dashboard
+  // STRICT REAL-WORLD INTEGRITY:
+  // ONLY displays when:
+  // 1. Driver Amrith has actually reported a breakdown SOS (shiptrack_driver_sos_reported === "true")
+  // 2. AND Company has dispatched the delay broadcast message!
+  const [customerBroadcastAlert, setCustomerBroadcastAlert] = useState(() => {
+    try {
+      const driverSos = localStorage.getItem("shiptrack_driver_sos_reported") === "true";
+      if (!driverSos) {
+        // Driver has not reported any breakdown SOS -> strictly NO banner!
+        return null;
+      }
+      const raguAlert = localStorage.getItem("shiptrack_customer_ragu_notification");
+      if (raguAlert) return JSON.parse(raguAlert);
+      const generalAlert = localStorage.getItem("shiptrack_highway_breakdown_alert");
+      if (generalAlert) return JSON.parse(generalAlert);
+    } catch {}
+    return null;
+  });
+  
+
   
   const isLoading = myShipments.isLoading;
   
@@ -55,6 +78,46 @@ export default function CustomerDashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <CustomerHeader userName={user?.firstName ?? user?.name ?? "Customer"} />
+
+      {/* Prominent Highway Breakdown / Delay Notice on Customer Dashboard */}
+      {customerBroadcastAlert && (
+        <Card className="border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 shadow-md animate-fade-in">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-md shadow-amber-500/30">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-extrabold text-amber-800 dark:text-amber-300 uppercase tracking-wide">
+                    ⚠️ Highway Carrier Transit Delay Notice
+                  </span>
+                  <span className="rounded-full bg-amber-500/25 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-900 dark:text-amber-200 border border-amber-500/30">
+                    {customerBroadcastAlert.delayTime || "+3h 45m"}
+                  </span>
+                  <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                    Revised ETA: {customerBroadcastAlert.revisedEta || "Today 08:30 PM"}
+                  </span>
+                </div>
+                <p className="text-xs text-foreground font-medium leading-relaxed">
+                  {customerBroadcastAlert.customMessage || customerBroadcastAlert.message || "Your parcel on carrier TN 38 BL 7842 encountered a highway transit hold near Salem. Standby relief vehicle deployed. Revised Delivery ETA: Today 08:30 PM (+3h 45m)."}
+                </p>
+                <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-muted-foreground font-medium">
+                  <span>Tracking #: <strong className="font-mono text-foreground font-bold">{customerBroadcastAlert.trackingNumber || "TRK-FC2FA501"}</strong></span>
+                  <span>Vehicle: <strong className="font-mono text-foreground">{customerBroadcastAlert.lorryNumber || "TN 38 BL 7842"}</strong></span>
+                  <span>Driver: <strong className="text-foreground font-bold">Amrith Saravanan</strong></span>
+                </div>
+              </div>
+            </div>
+            <Button asChild size="sm" variant="brand" className="text-xs font-bold shrink-0 shadow-sm gap-1.5">
+              <Link to="/app/shipments/3">
+                View Affected Shipment <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <MiniStat

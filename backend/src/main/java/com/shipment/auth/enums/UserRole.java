@@ -10,5 +10,7 @@ public enum UserRole {
 
     SUPPORT_AGENT,
 
-    ADMIN
+    ADMIN,
+
+    COMPANY
 }

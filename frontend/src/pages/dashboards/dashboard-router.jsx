@@ -1,10 +1,10 @@
-
 import { useAuth } from "@/context/auth-context";
-import  AdminDashboard  from "./admin-dashboard";
-import  OperatorDashboard  from "./operator-dashboard";
-import  BusinessDashboard  from "./business-dashboard";
-import  CustomerDashboard  from "./customer-dashboard";
-import  SupportDashboard  from "./support-dashboard";
+import AdminDashboard from "./admin-dashboard";
+import OperatorDashboard from "./operator-dashboard";
+import BusinessDashboard from "./business-dashboard";
+import CustomerDashboard from "./customer-dashboard";
+import SupportDashboard from "./support-dashboard";
+import CompanyDashboard from "./company-dashboard";
 
 export default function DashboardRouter() {
   const { user } = useAuth();
@@ -18,14 +18,14 @@ export default function DashboardRouter() {
       return <OperatorDashboard />;
     case "business_client":
       return <BusinessDashboard />;
+    case "company":
+    case "fleet_operator":
+      return <CompanyDashboard />;
     case "customer":
       return <CustomerDashboard />;
     case "support_agent":
       return <SupportDashboard />;
     default:
-    // return <AdminDashboard />;
       return <div>Unauthorized</div>;
   }
-
-  
 }

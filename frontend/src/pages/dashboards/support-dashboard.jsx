@@ -62,8 +62,8 @@ export default function SupportDashboard() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Support Desk"
-          description="Customer tickets & support escalations"
+          title="Customer Care Desk"
+          description="Customer inquiries, highway delay reassurance & grievance resolution"
           icon={Headphones}
         />
         <LoadingState label="Loading support ticket queues..." />
@@ -74,14 +74,14 @@ export default function SupportDashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Support Desk"
-        description={`Welcome, ${user?.name ?? user?.firstName ?? "Support Agent"} — customer ticket queue & issue resolution`}
+        title="Customer Care Desk"
+        description={`Welcome, ${user?.name ?? user?.firstName ?? "Customer Care Executive"} — customer ticket queue & issue resolution`}
         icon={Headphones}
         actions={
           <Button asChild variant="brand" size="sm" className="font-bold text-xs">
             <Link to="/app/tickets">
               <Inbox className="mr-1.5 h-4 w-4" />
-              Open Support Inbox
+              Open Care Inbox
             </Link>
           </Button>
         }

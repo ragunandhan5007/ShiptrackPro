@@ -231,7 +231,7 @@ export const shipmentsApi = {
           id: match.id,
           carrier: match.carrier || "ShipTrack Express",
           vehicleNumber: match.vehicleNumber || "TN 38 BL 7842",
-          driverName: match.driverName || "Amrith Kumar (Assigned Fleet Driver)",
+          driverName: match.driverName || "Amrith Saravanan (Assigned Fleet Driver)",
           driverPhone: match.driverPhone || "+919999988888",
         };
       }
@@ -833,10 +833,6 @@ export const mlApi = {
   },
   async optimizeRoute(payload) {
     const response = await api.post("/ml/optimize-route", payload);
-    return response.data;
-  },
-  async predictFailureRisk(payload) {
-    const response = await api.post("/ml/predict-failure-risk", payload);
     return response.data;
   },
 };

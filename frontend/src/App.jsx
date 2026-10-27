@@ -45,6 +45,7 @@ import CustomerDashboard from "./pages/dashboards/customer-dashboard";
 import BusinessDashboard from "./pages/dashboards/business-dashboard";
 import OperatorDashboard from "./pages/dashboards/operator-dashboard";
 import SupportDashboard from "./pages/dashboards/support-dashboard";
+import CompanyDashboard from "./pages/dashboards/company-dashboard";
 import OperatorNavigationPage from "@/pages/navigation";
 import CustomerPodUploadPage from "@/pages/customer-pod-upload";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -142,6 +143,8 @@ export default function App() {
                 <Route path="track" element={<TrackPage />} />
                 <Route path="map" element={<Navigate to="/app/routes" replace />} />
                 <Route path="live-map" element={<Navigate to="/app/routes" replace />} />
+                <Route path="company/dashboard" element={<CompanyDashboard />} />
+                <Route path="fleet" element={<CompanyDashboard />} />
               </Route>
             </Route>
 

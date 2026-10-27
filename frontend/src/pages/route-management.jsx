@@ -60,7 +60,6 @@ import {
   useUpdateShipmentStatus,
   useOptimizeRoute,
   useMlEta,
-  useMlFailureRisk,
 } from "@/lib/hooks";
 import { notificationsApi, shipmentsApi, podApi } from "@/lib/api";
 import {
@@ -413,7 +412,7 @@ const PACKAGES_FALLBACK = [
     receiverCity: "Chennai",
     status: "IN_TRANSIT",
     currentLocationName: "Salem Central Junction (NH-544)",
-    driverName: "Amrith Kumar",
+    driverName: "Amrith Saravanan",
     vehicleNumber: "TN 38 BL 7842",
     vehicleId: "TRK-8821",
     speed: 68,
@@ -668,7 +667,7 @@ export function RouteManagementPage({ defaultShipmentId }) {
         corridorId: corridorId,
         status: s.status || "IN_TRANSIT",
         currentLocationName: s.currentLocation || "Salem Central Junction (NH-544)",
-        driverName: s.driverName || "Amrith Kumar",
+        driverName: s.driverName || "Amrith Saravanan",
         driverPhone: s.driverPhone || "+919999988888",
         vehicleNumber: s.vehicleNumber || `TN 38 BL ${7800 + (index % 100)}`,
         vehicleId: `TRK-${s.id}`,
@@ -686,6 +685,49 @@ export function RouteManagementPage({ defaultShipmentId }) {
   }, [dbShipments]);
 
   const isDirectNavigationMode = !!effectiveShipmentId;
+
+  // Driver Highway Breakdown SOS state
+  const [driverBreakdownReported, setDriverBreakdownReported] = useState(() => {
+    try {
+      return localStorage.getItem("shiptrack_driver_sos_reported") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const handleTriggerBreakdownSOS = () => {
+    const isNowBroken = !driverBreakdownReported;
+    setDriverBreakdownReported(isNowBroken);
+    try {
+      localStorage.setItem("shiptrack_driver_sos_reported", isNowBroken ? "true" : "false");
+      if (!isNowBroken) {
+        localStorage.removeItem("shiptrack_customer_ragu_notification");
+        localStorage.removeItem("shiptrack_highway_breakdown_alert");
+      }
+      const fleetState = JSON.parse(localStorage.getItem("shiptrack_company_fleet_state") || "[]");
+      const updatedFleet = fleetState.map((l) => {
+        if (l.lorryNumber === "TN 38 BL 7842" || l.id === "lorry-1" || l.code === "Lorry #1") {
+          return {
+            ...l,
+            status: isNowBroken ? "BREAKDOWN" : "ON_HIGHWAY",
+            speed: isNowBroken ? 0 : 65,
+            breakdownLocation: isNowBroken ? "NH-544 Bypass near Salem" : null,
+            breakdownReason: isNowBroken ? "Engine Overheating & Highway Stall (Reported by Driver Amrith Saravanan)" : null,
+          };
+        }
+        return l;
+      });
+      localStorage.setItem("shiptrack_company_fleet_state", JSON.stringify(updatedFleet));
+    } catch {}
+
+    if (isNowBroken) {
+      toast.error("🚨 HIGHWAY BREAKDOWN SOS TRANSMITTED!", {
+        description: "Company Fleet Hub alerted. Standby vehicle requested for vehicle TN 38 BL 7842.",
+      });
+    } else {
+      toast.success("✅ Breakdown Status Cleared — Normal Highway Transit Resumed");
+    }
+  };
 
   // Selected package ID (defaults to effectiveShipmentId or the 1st package)
   const [selectedPackageId, setSelectedPackageId] = useState(null);
@@ -777,15 +819,6 @@ export function RouteManagementPage({ defaultShipmentId }) {
     weather_condition: weatherCondition,
     road_condition: roadCondition,
     hubs_count: chosenRoute.intermediateHubs.length,
-  });
-
-  const mlRisk = useMlFailureRisk({
-    delay_minutes: mlEta.data?.predicted_delay_minutes || 0,
-    traffic_condition: trafficCondition,
-    weather_condition: weatherCondition,
-    road_condition: roadCondition,
-    hours_in_transit: 5.0,
-    package_weight_kg: 3.0,
   });
 
   // Handle POD Image upload
@@ -1021,12 +1054,29 @@ export function RouteManagementPage({ defaultShipmentId }) {
               Recenter on Truck
             </Button>
 
+            {activePackage && ["IN_TRANSIT", "PICKED_UP", "OUT_FOR_DELIVERY"].includes(activePackage.status) && (
+              <Button
+                size="sm"
+                variant={driverBreakdownReported ? "destructive" : "outline"}
+                onClick={handleTriggerBreakdownSOS}
+                className={cn(
+                  "text-xs font-bold gap-1.5 shadow-sm transition-all",
+                  driverBreakdownReported
+                    ? "bg-rose-600 text-white hover:bg-rose-700 animate-pulse"
+                    : "border-rose-500/50 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
+                )}
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {driverBreakdownReported ? "Cancel Breakdown SOS" : "🚨 Report Breakdown SOS to Company"}
+              </Button>
+            )}
+
             <a
-              href={`tel:${activePackage?.customerPhone || activePackage?.driverPhone || "+919999988888"}`}
-              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+              href="tel:+918116959362"
+              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/60 px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
             >
-              <Phone className="h-3.5 w-3.5" />
-              Call Driver
+              <Phone className="h-3.5 w-3.5 text-blue-500" />
+              Fleet Control Desk
             </a>
 
             <Button
@@ -1341,7 +1391,7 @@ export function RouteManagementPage({ defaultShipmentId }) {
                         </Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        Driver: <b className="text-foreground">{activePackage?.driverName || "Amrith Kumar"}</b>
+                        Driver: <b className="text-foreground">{activePackage?.driverName || "Amrith Saravanan"}</b>
                       </p>
                       <p className="text-[11px] text-muted-foreground">
                         Active Checkpoint: <b className="text-primary">{currentHubDisplayName}</b>
@@ -1829,13 +1879,13 @@ export function RouteManagementPage({ defaultShipmentId }) {
 
           <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1">
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Delivery SLA Risk
+              Transit Risk Score
             </p>
             <p className="text-xl font-extrabold text-foreground">
-              {mlRisk.data?.failure_risk_percentage ?? "0"}%
+              {Math.round((mlEta.data?.delay_risk_probability ?? 0.15) * 100)}%
             </p>
             <p className="text-[11px] text-muted-foreground">
-              Risk Level: <span className={cn("font-bold", mlRisk.data?.risk_category === "CRITICAL" ? "text-rose-600" : mlRisk.data?.risk_category === "MODERATE" ? "text-amber-600" : "text-emerald-600")}>{mlRisk.data?.risk_category ?? "LOW"}</span>
+              Risk Level: <span className={cn("font-bold", mlEta.data?.risk_level === "HIGH" ? "text-rose-600" : mlEta.data?.risk_level === "MEDIUM" ? "text-amber-600" : "text-emerald-600")}>{mlEta.data?.risk_level ?? "LOW"}</span>
             </p>
           </div>
 
@@ -1844,7 +1894,7 @@ export function RouteManagementPage({ defaultShipmentId }) {
               AI Copilot Recommendation
             </p>
             <p className="text-xs text-foreground font-medium line-clamp-3 leading-relaxed">
-              {mlRisk.data?.recommended_intervention || mlEta.data?.contributing_factors?.[0] || "On schedule. Maintain standard driving pace."}
+              {mlEta.data?.contributing_factors?.[0] || "Optimal transit corridor. Proceed according to scheduled dispatch plan."}
             </p>
           </div>
         </div>

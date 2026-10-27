@@ -96,29 +96,4 @@ public class MlDtos {
         private Integer time_saved_minutes;
         private Double optimization_gain_pct;
     }
-
-    // 5. Failure & Cancellation Risk Request & Response
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FailureRiskRequest {
-        private Double delay_minutes;
-        private String traffic_condition;
-        private String weather_condition;
-        private String road_condition;
-        private Double hours_in_transit;
-        private Double package_weight_kg;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FailureRiskResponse {
-        private Integer failure_risk_percentage;
-        private String risk_category;
-        private List<String> identified_risk_factors;
-        private String recommended_intervention;
-    }
 }

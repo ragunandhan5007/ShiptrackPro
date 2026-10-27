@@ -252,7 +252,7 @@ export default function AdminDashboard() {
                   { lat: 11.0168, lng: 76.9558, name: "Coimbatore Industrial Node", status: "active" },
                 ]}
                 vehicles={[
-                  { id: "TRK-8821 (TN 38 BL 7842)", lat: 12.35, lng: 78.65, speed: "68 km/h", driver: "Amrith Kumar" },
+                  { id: "TRK-8821 (TN 38 BL 7842)", lat: 12.35, lng: 78.65, speed: "68 km/h", driver: "Amrith Saravanan" },
                   { id: "TRK-4410 (KA 01 EK 9022)", lat: 12.82, lng: 78.85, speed: "72 km/h", driver: "Senthil Nathan" },
                 ]}
                 zoom={7}
@@ -347,6 +347,7 @@ export default function AdminDashboard() {
                         BUSINESS_CLIENT: "bg-amber-500/10 text-amber-600 border-amber-500/20",
                         CUSTOMER: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
                         SUPPORT_AGENT: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+                        COMPANY: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
                       };
 
                       return (

@@ -91,7 +91,7 @@ const INITIAL_FLEET = [
   {
     id: "FLEET-01",
     vehicleNumber: "TN 38 BL 7842",
-    driverName: "Amrith Kumar",
+    driverName: "Amrith Saravanan",
     phone: "+91 99999 88888",
     lat: 11.0168,
     lng: 76.9558,
@@ -368,7 +368,7 @@ export function LiveMapPage() {
                               href={`tel:${vehicle.phone}`}
                               className="inline-flex items-center gap-1 text-[11px] text-primary font-bold hover:underline"
                             >
-                              <Phone className="h-3 w-3" /> Call Driver
+                              <Phone className="h-3 w-3" /> Fleet Dispatch Call
                             </a>
                             <span className="text-[10px] font-bold text-slate-500">{vehicle.routeProgress}% route</span>
                           </div>

@@ -138,9 +138,12 @@ export function CreateShipmentPage() {
 
   const estimatedCost = Math.round(
     (selectedShipmentType?.baseCost ?? 0) *
-(selectedPriority?.multiplier ?? 1)*
-      Math.max(form.packageWeightKg / 10, 1),
+      (selectedPriority?.multiplier ?? 1) *
+      Math.max(Number(form.packageWeightKg || 0) / 10, 1),
   );
+
+  const declaredValNum = Number(form.declaredValue) || 0;
+  const totalValuePlusCharge = declaredValNum + estimatedCost;
 
   const update = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -224,7 +227,7 @@ export function CreateShipmentPage() {
      await createShipment.mutateAsync(payload);
 
      toast.success("Shipment created successfully", {
-       description: `Cost: ${formatCurrency(estimatedCost)} · ${selectedShipmentType?.label}`,
+       description: `Declared Value: ${formatCurrency(declaredValNum)} · Shipment Charge: ${formatCurrency(estimatedCost)} · Total: ${formatCurrency(totalValuePlusCharge)}`,
      });
 
      navigate("/app/shipments");
@@ -376,6 +379,38 @@ export function CreateShipmentPage() {
                     />
                   </div>
                 </div>
+
+                {/* Real-Time Pricing & Valuation Callout */}
+                <div className="rounded-xl border border-primary/25 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 p-4 shadow-2xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Consignment Valuation & Shipment Charge
+                    </span>
+                    <span className="text-[11px] text-muted-foreground font-medium">Live Estimation</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div className="rounded-lg bg-card/90 p-3 border border-border/70">
+                      <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">Declared Value</span>
+                      <p className="text-base font-bold text-foreground mt-0.5">
+                        {formatCurrency(declaredValNum)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-card/90 p-3 border border-border/70">
+                      <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">Shipment Charge</span>
+                      <p className="text-base font-bold text-emerald-600 mt-0.5">
+                        {formatCurrency(estimatedCost)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-primary/10 p-3 border border-primary/30">
+                      <span className="text-[11px] text-primary font-bold uppercase tracking-wider">Declared Value + Charge</span>
+                      <p className="text-base font-extrabold text-primary mt-0.5">
+                        {formatCurrency(totalValuePlusCharge)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
                   {/* <div className="flex items-center gap-3">
                     <Switch
@@ -691,34 +726,48 @@ export function CreateShipmentPage() {
                     
                     <ReviewRow
                       label="Declared Value"
-                      value={formatCurrency(form.declaredValue)}
+                      value={formatCurrency(declaredValNum)}
                     />
                     <ReviewRow
                       label="Weight"
-                      value={`${form.packageWeightKg} kg`}
+                      value={`${form.packageWeightKg || 0} kg`}
                     />
-                    <ReviewRow label="Pieces" value={String(form.pieces)} />
-                    {/* <ReviewRow
-                      label="Fragile"
-                      value={form.fragile ? "Yes" : "No"}
-                    />
-                    <ReviewRow
-                      label="Insured"
-                      value={form.insured ? "Yes" : "No"}
-                    /> */}
+                    <ReviewRow label="Pieces" value={String(form.pieces || 1)} />
                   </div>
-                  <div className="rounded-xl border border-success/30 bg-success/5 p-4 mt-4">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-sm font-semibold text-success">
+
+                  {/* Financial Breakdown: Declared Value + Shipment Charge */}
+                  <div className="rounded-xl border border-border/80 bg-card p-4 mt-4 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+                      <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
                         <Sparkles className="h-4 w-4" />
-                        Estimated Cost
+                        Shipment Financials & Charges
                       </span>
-                      <span className="text-2xl font-bold text-success">
-                        {formatCurrency(estimatedCost)}
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        {selectedShipmentType?.label} · {selectedPriority?.label} Priority
                       </span>
                     </div>
+                    <div className="space-y-2.5 text-sm">
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Declared Consignment Value:</span>
+                        <span className="font-semibold text-foreground">
+                          {formatCurrency(declaredValNum)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Shipment Charge (Freight & Handling):</span>
+                        <span className="font-semibold text-emerald-600">
+                          {formatCurrency(estimatedCost)}
+                        </span>
+                      </div>
+                      <div className="border-t border-border/70 pt-2.5 flex items-center justify-between font-bold text-base">
+                        <span className="text-foreground">Total (Declared Value + Shipment Charge):</span>
+                        <span className="text-2xl font-extrabold text-primary">
+                          {formatCurrency(totalValuePlusCharge)}
+                        </span>
+                      </div>
+                    </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Final cost calculated after booking confirmation
+                      Shipment charge is calculated dynamically from cargo weight, selected tier, and delivery priority.
                     </p>
                   </div>
                 </div>
@@ -775,11 +824,7 @@ export function CreateShipmentPage() {
                     ?.label || "—"
                 }
               />
-              <SummaryRow label="Weight" value={`${form.packageWeightKg} kg`} />
-              <SummaryRow
-                label="Declared Value"
-                value={formatCurrency(form.declaredValue)}
-              />
+              <SummaryRow label="Weight" value={`${form.packageWeightKg || 0} kg`} />
               <SummaryRow
                 label="Shipment Type"
                 value={selectedShipmentType?.label || "—"}
@@ -788,13 +833,24 @@ export function CreateShipmentPage() {
                 label="Priority"
                 value={selectedPriority?.label || "—"}
               />
-              <div className="border-t border-border pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Est. Cost
+
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5 space-y-2 mt-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Declared Value</span>
+                  <span className="font-bold text-foreground">
+                    {formatCurrency(declaredValNum)}
                   </span>
-                  <span className="text-xl font-bold text-success">
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Shipment Charge</span>
+                  <span className="font-bold text-emerald-600">
                     {formatCurrency(estimatedCost)}
+                  </span>
+                </div>
+                <div className="border-t border-primary/20 pt-2 flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground">Declared Value + Charge</span>
+                  <span className="text-base font-extrabold text-primary">
+                    {formatCurrency(totalValuePlusCharge)}
                   </span>
                 </div>
               </div>

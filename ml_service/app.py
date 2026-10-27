@@ -7,11 +7,10 @@ import uvicorn
 from models.eta_delay_model import EtaDelayPredictor
 from models.ticket_nlp_model import TicketNlpClassifier
 from models.route_optimizer import RouteOptimizer
-from models.failure_risk_model import FailureRiskPredictor
 
 app = FastAPI(
     title="ShipTrackPro ML Microservice",
-    description="Machine Learning service providing Dynamic ETA, Ticket NLP, Route Optimization, and Delivery Failure Risk predictions.",
+    description="Machine Learning service providing Dynamic ETA, Ticket NLP, and Route Optimization.",
     version="1.0.0"
 )
 
@@ -28,8 +27,7 @@ print("Loading ML models into memory...")
 eta_model = EtaDelayPredictor()
 nlp_model = TicketNlpClassifier()
 route_model = RouteOptimizer()
-risk_model = FailureRiskPredictor()
-print("All 4 ML models loaded successfully!")
+print("All 3 ML models loaded successfully!")
 
 # Request Schemas
 class EtaRequest(BaseModel):
@@ -56,24 +54,15 @@ class RouteOptimizeRequest(BaseModel):
     intermediate_stops: List[Waypoint] = []
     traffic_penalty_factor: float = 1.0
 
-class FailureRiskRequest(BaseModel):
-    delay_minutes: float = Field(default=0.0, example=45.0)
-    traffic_condition: str = Field(default="LOW", example="HEAVY")
-    weather_condition: str = Field(default="CLEAR", example="STORM")
-    road_condition: str = Field(default="GOOD", example="ACCIDENT")
-    hours_in_transit: float = Field(default=6.0, example=18.0)
-    package_weight_kg: float = Field(default=5.0, example=12.0)
-
 @app.get("/health")
 def health_check():
     return {
         "status": "HEALTHY",
         "service": "ShipTrackPro ML Engine",
         "models_active": [
-            "Model 1: Dynamic ETA & Delay Predictor (RandomForest)",
-            "Model 3: Support Ticket NLP & Priority Classifier (TF-IDF + LogReg)",
-            "Model 4: Smart Route & Dispatch Optimizer (TSP 2-Opt)",
-            "Model 5: Delivery Failure & Cancellation Risk Predictor (GradientBoosting)"
+            "Model 1: Dynamic ETA & Delay Predictor (RandomForest / MLP)",
+            "Model 2: Support Ticket NLP & Priority Classifier (TF-IDF)",
+            "Model 3: Smart Route & Dispatch Optimizer (TSP 2-Opt)"
         ]
     }
 
@@ -93,7 +82,7 @@ def predict_eta(req: EtaRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 3. NLP Support Ticket
+# 2. NLP Support Ticket
 @app.post("/api/ml/classify-ticket")
 def classify_ticket(req: TicketClassifyRequest):
     try:
@@ -105,7 +94,7 @@ def classify_ticket(req: TicketClassifyRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 4. Route Optimization
+# 3. Route Optimization
 @app.post("/api/ml/optimize-route")
 def optimize_route(req: RouteOptimizeRequest):
     try:
@@ -118,22 +107,6 @@ def optimize_route(req: RouteOptimizeRequest):
             destination=dest_dict,
             intermediate_stops=stops_dict,
             traffic_penalty_factor=req.traffic_penalty_factor
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# 5. Failure & Cancellation Risk
-@app.post("/api/ml/predict-failure-risk")
-def predict_failure_risk(req: FailureRiskRequest):
-    try:
-        result = risk_model.predict_risk(
-            delay_minutes=req.delay_minutes,
-            traffic_condition=req.traffic_condition,
-            weather_condition=req.weather_condition,
-            road_condition=req.road_condition,
-            hours_in_transit=req.hours_in_transit,
-            package_weight_kg=req.package_weight_kg
         )
         return result
     except Exception as e:

@@ -20,6 +20,7 @@ import {
   Inbox,
 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 
 
@@ -45,8 +46,33 @@ export function NotificationsPage() {
   const [filter, setFilter] = useState("all");
   // const queryClient = useQueryClient();
 
-  const unread = notifications?.filter((n) => !n.read) ?? [];
-  const filtered = filter === "unread" ? unread : (notifications ?? []);
+  const localRaguNotification = (() => {
+    try {
+      const raguAlert = localStorage.getItem("shiptrack_customer_ragu_notification");
+      if (raguAlert) {
+        const parsed = JSON.parse(raguAlert);
+        return {
+          id: "ragu-broadcast-delay-alert",
+          title: parsed.title || "Highway Transit Delay Alert",
+          message: parsed.message || parsed.customMessage,
+          type: "alert",
+          severity: "warning",
+          read: !parsed.unread,
+          timestamp: parsed.timestamp || new Date().toISOString(),
+          link: `/app/shipments/3`,
+        };
+      }
+    } catch {}
+    return null;
+  })();
+
+  const allNotifications = [
+    ...(localRaguNotification ? [localRaguNotification] : []),
+    ...(notifications ?? []),
+  ];
+
+  const unread = allNotifications.filter((n) => !n.read);
+  const filtered = filter === "unread" ? unread : allNotifications;
 // ======================================================================
 // useEffect(() => {
 //   let cleanup = null;
@@ -138,6 +164,13 @@ export function NotificationsPage() {
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       {n.message}
                     </p>
+                    {n.link && (
+                      <div className="mt-2">
+                        <Button asChild size="sm" variant="brand" className="text-xs font-bold h-7">
+                          <Link to={n.link}>Track Shipment Live</Link>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {!n.read && (
                     <button

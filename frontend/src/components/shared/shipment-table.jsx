@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { cn, formatDateTime, relativeDay } from "@/lib/utils";
+import { cn, formatDateTime, relativeDay, formatCurrency } from "@/lib/utils";
 import { StatusBadge, PriorityBadge } from "./status-badge";
 import {
   Table,
@@ -101,8 +101,11 @@ export function ShipmentTable({
                           <span className="font-mono text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                             {s.trackingNumber}
                           </span>
-                          <span className="text-[10px] uppercase font-semibold text-muted-foreground/70">
-                            {s.carrierName || "ShipTrack"}
+                          <span className="text-[10px] font-semibold text-muted-foreground/80 flex items-center gap-1.5">
+                            <span className="uppercase">{s.carrierName || "ShipTrack"}</span>
+                            {s.declaredValue ? (
+                              <span className="text-emerald-600 font-bold">· Val: {formatCurrency(s.declaredValue)}</span>
+                            ) : null}
                           </span>
                         </span>
                       </Link>

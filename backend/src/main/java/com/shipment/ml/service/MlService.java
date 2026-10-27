@@ -147,28 +147,4 @@ public class MlService {
                 .optimization_gain_pct(8.3)
                 .build();
     }
-
-    // 5. Failure & Cancellation Risk Prediction
-    public FailureRiskResponse predictFailureRisk(FailureRiskRequest request) {
-        try {
-            String url = mlServiceUrl + "/api/ml/predict-failure-risk";
-            ResponseEntity<FailureRiskResponse> response = restTemplate.postForEntity(url, request, FailureRiskResponse.class);
-            if (response.getBody() != null) {
-                return response.getBody();
-            }
-        } catch (Exception e) {
-            log.warn("ML Service unavailable for Failure Risk ({}), utilizing fallback.", e.getMessage());
-        }
-
-        double delay = request.getDelay_minutes() != null ? request.getDelay_minutes() : 0.0;
-        int risk = (int) Math.min(100, Math.round(delay * 0.8 + 10));
-        String category = risk > 65 ? "CRITICAL" : (risk > 35 ? "MODERATE" : "LOW");
-
-        return FailureRiskResponse.builder()
-                .failure_risk_percentage(risk)
-                .risk_category(category)
-                .identified_risk_factors(Collections.singletonList(risk > 50 ? "Cumulative transit delay elevated" : "Normal delivery transit"))
-                .recommended_intervention(risk > 50 ? "Proactively contact customer to update delivery window" : "Standard dispatch routing")
-                .build();
-    }
 }

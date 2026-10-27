@@ -1,0 +1,32 @@
+# Build and dependency directories
+target/
+**/target/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Python cache & virtual environments
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Temporary patch / backup files
+ROLLBACK_CHANGES.bat
