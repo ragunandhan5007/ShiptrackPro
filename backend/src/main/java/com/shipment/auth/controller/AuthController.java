@@ -29,6 +29,8 @@ import org.springframework.security.core.Authentication;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.shipment.auth.repository.UserRepository userRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse> register(
@@ -142,4 +144,18 @@ public class AuthController {
                 authService.getUserById(id)
         );
     }
+
+    @GetMapping("/users-list")
+    public ResponseEntity<?> getUsersList() {
+        return ResponseEntity.ok(userRepository.findAll().stream().map(u -> java.util.Map.of(
+                "id", u.getId(),
+                "email", u.getEmail() != null ? u.getEmail() : "",
+                "role", u.getRole() != null ? u.getRole().name() : "",
+                "firstName", u.getFirstName() != null ? u.getFirstName() : "",
+                "lastName", u.getLastName() != null ? u.getLastName() : "",
+                "phone", u.getPhone() != null ? u.getPhone() : ""
+        )).toList());
+    }
+
+    
 }

@@ -486,6 +486,57 @@ export default function CompanyDashboard() {
   };
 
   // Handler: Execute Customized 1-Click Broadcast Delay Alert to 1,000 Customers!
+    // Handler: Mark Breakdown Resolved & Broadcast Resumed Transit to Customers
+  const handleResolveBreakdown = () => {
+    if (!breakdownLorry) return;
+
+    setLorries((prev) =>
+      prev.map((l) =>
+        l.id === breakdownLorry.id
+          ? {
+              ...l,
+              status: "ON_HIGHWAY",
+              speed: 65,
+              breakdownLocation: null,
+              breakdownReason: null,
+              breakdownTime: null,
+              delayedCustomersCount: 0,
+              isDelayNotified: false,
+              reliefLorryAssigned: null,
+            }
+          : l,
+      ),
+    );
+
+    try {
+      localStorage.setItem("shiptrack_breakdown_resolved", "true");
+      localStorage.setItem(
+        "shiptrack_resolved_alert_data",
+        JSON.stringify({
+          isResolved: true,
+          status: "RESOLVED",
+          title: "Highway Carrier Breakdown Resolved",
+          message: `Carrier vehicle ${breakdownLorry.lorryNumber} breakdown cleared near Salem bypass. Vehicle has resumed active highway transit towards destination on schedule.`,
+          revisedEta: "Today 09:15 PM (On Schedule)",
+          lorryNumber: breakdownLorry.lorryNumber,
+          trackingNumber: "TRK-FC2FA501",
+          driverName: breakdownLorry.driverName,
+          resolvedAt: new Date().toISOString(),
+        }),
+      );
+      localStorage.setItem("shiptrack_driver_sos_reported", "false");
+      localStorage.removeItem("shiptrack_highway_breakdown_alert");
+      localStorage.removeItem("shiptrack_customer_ragu_notification");
+      sessionStorage.removeItem("shiptrack_alert_dismissed");
+      window.dispatchEvent(new Event("shiptrack_alert_update"));
+    } catch {}
+
+    toast.success("✅ Breakdown Status Resolved!", {
+      description: `Carrier ${breakdownLorry.lorryNumber} restored to ON_HIGHWAY. Customer dashboard updated with Resolved status & updated ETA.`,
+      duration: 6000,
+    });
+  };
+
   const handleExecuteBroadcast = () => {
     if (!selectedLorryForBroadcast) return;
 
@@ -998,16 +1049,26 @@ export default function CompanyDashboard() {
                   </div>
 
                   {/* 1-Click Customizable Broadcast Trigger */}
-                  <Button
-                    variant="brand"
-                    onClick={() => handleOpenBroadcastModal(breakdownLorry)}
-                    className="text-xs font-bold shadow-md gap-2"
-                  >
-                    <Send className="h-4 w-4" />
-                    {breakdownLorry.isDelayNotified
-                      ? `Re-Send Broadcast (${breakdownLorry.cargoCount} Customers Alerted ✓)`
-                      : `📢 1-Click Customize & Broadcast Delay to Affected Customers (${breakdownLorry.cargoCount} Parcels)`}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="brand"
+                      onClick={() => handleOpenBroadcastModal(breakdownLorry)}
+                      className="text-xs font-bold shadow-md gap-2"
+                    >
+                      <Send className="h-4 w-4" />
+                      {breakdownLorry.isDelayNotified
+                        ? `Re-Send Broadcast (${breakdownLorry.cargoCount} Customers Alerted ✓)`
+                        : `📢 1-Click Customize & Broadcast Delay (${breakdownLorry.cargoCount} Parcels)`}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleResolveBreakdown}
+                      className="text-xs font-bold shadow-sm gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      ✅ Mark Breakdown Resolved & Notify Customers
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

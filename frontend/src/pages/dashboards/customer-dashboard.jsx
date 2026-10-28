@@ -21,6 +21,7 @@ import {
   ChevronRight,
   PackageX,
   AlertTriangle,
+  Navigation,
 } from "lucide-react";
 
 export default function CustomerDashboard() {
@@ -34,11 +35,28 @@ export default function CustomerDashboard() {
   // 2. AND Company has dispatched the delay broadcast message!
   const [customerBroadcastAlert, setCustomerBroadcastAlert] = useState(() => {
     try {
-      const driverSos = localStorage.getItem("shiptrack_driver_sos_reported") === "true";
-      if (!driverSos) {
-        // Driver has not reported any breakdown SOS -> strictly NO banner!
-        return null;
+      const isDismissed = sessionStorage.getItem("shiptrack_alert_dismissed") === "true";
+      if (isDismissed) return null;
+
+      const isResolved = localStorage.getItem("shiptrack_breakdown_resolved") === "true";
+      if (isResolved) {
+        const resolvedData = localStorage.getItem("shiptrack_resolved_alert_data");
+        if (resolvedData) return JSON.parse(resolvedData);
+        return {
+          isResolved: true,
+          status: "RESOLVED",
+          title: "Highway Carrier Breakdown Resolved",
+          message: "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle is back on the highway in active transit.",
+          revisedEta: "Today 09:15 PM (On Schedule)",
+          lorryNumber: "TN 38 BL 7842",
+          trackingNumber: "TRK-FC2FA501",
+          driverName: "Amrith Saravanan"
+        };
       }
+
+      const driverSos = localStorage.getItem("shiptrack_driver_sos_reported") === "true";
+      if (!driverSos) return null;
+
       const raguAlert = localStorage.getItem("shiptrack_customer_ragu_notification");
       if (raguAlert) return JSON.parse(raguAlert);
       const generalAlert = localStorage.getItem("shiptrack_highway_breakdown_alert");
@@ -46,6 +64,64 @@ export default function CustomerDashboard() {
     } catch {}
     return null;
   });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const isDismissed = sessionStorage.getItem("shiptrack_alert_dismissed") === "true";
+        if (isDismissed) {
+          setCustomerBroadcastAlert(null);
+          return;
+        }
+
+        const isResolved = localStorage.getItem("shiptrack_breakdown_resolved") === "true";
+        if (isResolved) {
+          const resolvedData = localStorage.getItem("shiptrack_resolved_alert_data");
+          if (resolvedData) {
+            setCustomerBroadcastAlert(JSON.parse(resolvedData));
+            return;
+          }
+          setCustomerBroadcastAlert({
+            isResolved: true,
+            status: "RESOLVED",
+            title: "Highway Carrier Breakdown Resolved",
+            message: "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle is back on the highway in active transit.",
+            revisedEta: "Today 09:15 PM (On Schedule)",
+            lorryNumber: "TN 38 BL 7842",
+            trackingNumber: "TRK-FC2FA501",
+            driverName: "Amrith Saravanan"
+          });
+          return;
+        }
+
+        const driverSos = localStorage.getItem("shiptrack_driver_sos_reported") === "true";
+        if (!driverSos) {
+          setCustomerBroadcastAlert(null);
+          return;
+        }
+        const raguAlert = localStorage.getItem("shiptrack_customer_ragu_notification");
+        if (raguAlert) {
+          setCustomerBroadcastAlert(JSON.parse(raguAlert));
+          return;
+        }
+        const generalAlert = localStorage.getItem("shiptrack_highway_breakdown_alert");
+        if (generalAlert) {
+          setCustomerBroadcastAlert(JSON.parse(generalAlert));
+          return;
+        }
+        setCustomerBroadcastAlert(null);
+      } catch {}
+    };
+
+    window.addEventListener("storage", handleUpdate);
+    window.addEventListener("shiptrack_alert_update", handleUpdate);
+    const interval = setInterval(handleUpdate, 1500);
+    return () => {
+      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("shiptrack_alert_update", handleUpdate);
+      clearInterval(interval);
+    };
+  }, []);
   
 
   
@@ -62,7 +138,7 @@ export default function CustomerDashboard() {
   const delivered = all.filter((s) => s.status === "DELIVERED" || s.status === "delivered");
   const outForDelivery = all.filter((s) => s.status === "OUT_FOR_DELIVERY" || s.status === "out_for_delivery");
   const featured =
-    active.find((s) => s.status === "OUT_FOR_DELIVERY" || s.status === "out_for_delivery") ?? active[0] ?? all[0];
+    active.find((s) => s.status === "OUT_FOR_DELIVERY" || s.status === "out_for_delivery") ?? active[0] ?? null;
 
   if (isLoading) {
     return (
@@ -79,41 +155,96 @@ export default function CustomerDashboard() {
     <div className="space-y-6 animate-fade-in">
       <CustomerHeader userName={user?.firstName ?? user?.name ?? "Customer"} />
 
-      {/* Prominent Highway Breakdown / Delay Notice on Customer Dashboard */}
+      {/* Prominent Highway Breakdown & Resolved Broadcast Notice on Customer Dashboard */}
       {customerBroadcastAlert && (
-        <Card className="border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 shadow-md animate-fade-in">
+        <Card className={cn(
+          "shadow-md animate-fade-in transition-all",
+          customerBroadcastAlert.isResolved
+            ? "border-emerald-500/50 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-emerald-500/5"
+            : "border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5"
+        )}>
           <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-md shadow-amber-500/30">
-                <AlertTriangle className="h-6 w-6" />
+              <div className={cn(
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
+                customerBroadcastAlert.isResolved
+                  ? "bg-emerald-600 shadow-emerald-500/30"
+                  : "bg-amber-500 shadow-amber-500/30"
+              )}>
+                {customerBroadcastAlert.isResolved ? (
+                  <CheckCircle2 className="h-6 w-6" />
+                ) : (
+                  <AlertTriangle className="h-6 w-6" />
+                )}
               </div>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-extrabold text-amber-800 dark:text-amber-300 uppercase tracking-wide">
-                    ⚠️ Highway Carrier Transit Delay Notice
+                  <span className={cn(
+                    "text-xs font-extrabold uppercase tracking-wide",
+                    customerBroadcastAlert.isResolved
+                      ? "text-emerald-800 dark:text-emerald-300"
+                      : "text-amber-800 dark:text-amber-300"
+                  )}>
+                    {customerBroadcastAlert.isResolved
+                      ? "✅ Highway Carrier Breakdown Resolved — Transit Resumed"
+                      : "⚠️ Highway Carrier Transit Delay Notice"}
                   </span>
-                  <span className="rounded-full bg-amber-500/25 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-900 dark:text-amber-200 border border-amber-500/30">
-                    {customerBroadcastAlert.delayTime || "+3h 45m"}
-                  </span>
-                  <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-700 dark:text-rose-300 border border-rose-500/30">
-                    Revised ETA: {customerBroadcastAlert.revisedEta || "Today 08:30 PM"}
+                  {customerBroadcastAlert.isResolved ? (
+                    <span className="rounded-full bg-emerald-500/25 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-900 dark:text-emerald-200 border border-emerald-500/30">
+                      Resolved
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-amber-500/25 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-900 dark:text-amber-200 border border-amber-500/30">
+                      {customerBroadcastAlert.delayTime || "+3h 45m"}
+                    </span>
+                  )}
+                  <span className={cn(
+                    "rounded-full px-2.5 py-0.5 text-[11px] font-extrabold border",
+                    customerBroadcastAlert.isResolved
+                      ? "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30"
+                      : "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30"
+                  )}>
+                    {customerBroadcastAlert.isResolved
+                      ? `Updated ETA: ${customerBroadcastAlert.revisedEta || "Today 09:15 PM"}`
+                      : `Revised ETA: ${customerBroadcastAlert.revisedEta || "Today 08:30 PM"}`}
                   </span>
                 </div>
                 <p className="text-xs text-foreground font-medium leading-relaxed">
-                  {customerBroadcastAlert.customMessage || customerBroadcastAlert.message || "Your parcel on carrier TN 38 BL 7842 encountered a highway transit hold near Salem. Standby relief vehicle deployed. Revised Delivery ETA: Today 08:30 PM (+3h 45m)."}
+                  {customerBroadcastAlert.customMessage || customerBroadcastAlert.message || (
+                    customerBroadcastAlert.isResolved
+                      ? "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle has resumed active highway transit towards destination on schedule."
+                      : "Your parcel on carrier TN 38 BL 7842 encountered a highway transit hold near Salem. Standby relief vehicle deployed. Revised Delivery ETA: Today 08:30 PM (+3h 45m)."
+                  )}
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-muted-foreground font-medium">
                   <span>Tracking #: <strong className="font-mono text-foreground font-bold">{customerBroadcastAlert.trackingNumber || "TRK-FC2FA501"}</strong></span>
                   <span>Vehicle: <strong className="font-mono text-foreground">{customerBroadcastAlert.lorryNumber || "TN 38 BL 7842"}</strong></span>
-                  <span>Driver: <strong className="text-foreground font-bold">Amrith Saravanan</strong></span>
+                  <span>Driver: <strong className="text-foreground font-bold">{customerBroadcastAlert.driverName || "Amrith Saravanan"}</strong></span>
                 </div>
               </div>
             </div>
-            <Button asChild size="sm" variant="brand" className="text-xs font-bold shrink-0 shadow-sm gap-1.5">
-              <Link to="/app/shipments/3">
-                View Affected Shipment <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button asChild size="sm" variant={customerBroadcastAlert.isResolved ? "default" : "brand"} className="text-xs font-bold shrink-0 shadow-sm gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
+                <Link to="/app/routes?id=3">
+                  <Navigation className="h-3.5 w-3.5" />
+                  Live Track Item <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+              {customerBroadcastAlert.isResolved && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs text-muted-foreground hover:text-foreground h-8 px-2"
+                  onClick={() => {
+                    sessionStorage.setItem("shiptrack_alert_dismissed", "true");
+                    setCustomerBroadcastAlert(null);
+                  }}
+                  title="Dismiss notification"
+                >
+                  ✕
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -143,18 +274,31 @@ export default function CustomerDashboard() {
       {featured ? (
         <FeaturedTrackingCard shipment={featured} />
       ) : (
-        <Card className="shadow-card border-border/80">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-            <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground">
-              <Package className="h-6 w-6" />
+        <Card className="shadow-card border-border/80 bg-gradient-to-br from-emerald-500/5 via-background to-background">
+          <CardContent className="flex flex-col sm:flex-row items-center justify-between p-6 gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">
+                  All Shipments Delivered Safely
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  You currently have no packages in active transit. Your past deliveries are archived in the package history below.
+                </p>
+              </div>
             </div>
-            <p className="text-base font-bold text-foreground">
-              No active deliveries
-            </p>
-            <p className="text-xs text-muted-foreground max-w-sm">
-              Your shipments will appear here automatically once a booking is
-              dispatched to your address.
-            </p>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="text-xs font-semibold shrink-0 gap-1.5"
+            >
+              <Link to="/app/deliveries">
+                View Delivery History ({delivered.length}) <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       )}

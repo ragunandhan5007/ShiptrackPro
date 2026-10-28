@@ -700,10 +700,28 @@ export function RouteManagementPage({ defaultShipmentId }) {
     setDriverBreakdownReported(isNowBroken);
     try {
       localStorage.setItem("shiptrack_driver_sos_reported", isNowBroken ? "true" : "false");
-      if (!isNowBroken) {
+      if (isNowBroken) {
+        localStorage.removeItem("shiptrack_breakdown_resolved");
+        localStorage.removeItem("shiptrack_resolved_alert_data");
+        sessionStorage.removeItem("shiptrack_alert_dismissed");
+      } else {
+        localStorage.setItem("shiptrack_breakdown_resolved", "true");
+        localStorage.setItem("shiptrack_resolved_alert_data", JSON.stringify({
+          isResolved: true,
+          status: "RESOLVED",
+          title: "Highway Carrier Breakdown Resolved",
+          message: "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle has resumed active highway transit towards destination on schedule.",
+          revisedEta: "Today 09:15 PM (On Schedule)",
+          lorryNumber: "TN 38 BL 7842",
+          trackingNumber: "TRK-FC2FA501",
+          driverName: "Amrith Saravanan",
+          resolvedAt: new Date().toISOString(),
+        }));
         localStorage.removeItem("shiptrack_customer_ragu_notification");
         localStorage.removeItem("shiptrack_highway_breakdown_alert");
       }
+      window.dispatchEvent(new Event("shiptrack_alert_update"));
+
       const fleetState = JSON.parse(localStorage.getItem("shiptrack_company_fleet_state") || "[]");
       const updatedFleet = fleetState.map((l) => {
         if (l.lorryNumber === "TN 38 BL 7842" || l.id === "lorry-1" || l.code === "Lorry #1") {
@@ -725,7 +743,9 @@ export function RouteManagementPage({ defaultShipmentId }) {
         description: "Company Fleet Hub alerted. Standby vehicle requested for vehicle TN 38 BL 7842.",
       });
     } else {
-      toast.success("✅ Breakdown Status Cleared — Normal Highway Transit Resumed");
+      toast.success("✅ Breakdown Status Cleared — Normal Highway Transit Resumed", {
+        description: "Customer dashboards updated with Resolved notice & updated ETA."
+      });
     }
   };
 
