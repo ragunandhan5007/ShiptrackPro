@@ -194,20 +194,26 @@ export default function CustomerDashboard() {
                 <p className="text-xs text-foreground font-medium leading-relaxed">
                   {customerBroadcastAlert.customMessage || customerBroadcastAlert.message || (
                     customerBroadcastAlert.isResolved
-                      ? "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle has resumed active highway transit towards destination on schedule."
-                      : "Your parcel on carrier TN 38 BL 7842 encountered a highway transit hold near Salem. Standby relief vehicle deployed. Revised Delivery ETA: Today 08:30 PM (+3h 45m)."
+                      ? "Carrier breakdown cleared. Vehicle has resumed active highway transit towards destination on schedule."
+                      : "Your parcel carrier encountered a temporary highway transit delay. Standby relief vehicle deployed. Revised Delivery ETA updated."
                   )}
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-muted-foreground font-medium">
-                  <span>Tracking #: <strong className="font-mono text-foreground font-bold">{customerBroadcastAlert.trackingNumber || "TRK-FC2FA501"}</strong></span>
-                  <span>Vehicle: <strong className="font-mono text-foreground">{customerBroadcastAlert.lorryNumber || "TN 38 BL 7842"}</strong></span>
-                  <span>Driver: <strong className="text-foreground font-bold">{customerBroadcastAlert.driverName || "Amrith Saravanan"}</strong></span>
+                  {customerBroadcastAlert.trackingNumber && (
+                    <span>Tracking #: <strong className="font-mono text-foreground font-bold">{customerBroadcastAlert.trackingNumber}</strong></span>
+                  )}
+                  {customerBroadcastAlert.lorryNumber && (
+                    <span>Vehicle: <strong className="font-mono text-foreground">{customerBroadcastAlert.lorryNumber}</strong></span>
+                  )}
+                  {customerBroadcastAlert.driverName && (
+                    <span>Driver: <strong className="text-foreground font-bold">{customerBroadcastAlert.driverName}</strong></span>
+                  )}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Button asChild size="sm" variant={customerBroadcastAlert.isResolved ? "default" : "brand"} className="text-xs font-bold shrink-0 shadow-sm gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
-                <Link to="/app/routes?id=3">
+                <Link to={customerBroadcastAlert.trackingNumber ? `/app/routes?id=${customerBroadcastAlert.trackingNumber}` : (featured?.id ? `/app/routes?id=${featured.id}` : "/app/routes")}>
                   <Navigation className="h-3.5 w-3.5" />
                   Live Track Item <ArrowRight className="h-3.5 w-3.5" />
                 </Link>

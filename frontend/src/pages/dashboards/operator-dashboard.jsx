@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   useShipments,
   useNotifications,
@@ -97,9 +97,44 @@ export default function OperatorDashboard() {
     }
   });
 
+  const assigned = shipments.data ?? [];
+  const pending = assigned.filter(
+    (s) =>
+      !s.cancelledByCustomer &&
+      (s.status === "CREATED" || s.status === "PICKED_UP"),
+  );
+
+  const active = assigned.filter(
+    (s) =>
+      !s.cancelledByCustomer &&
+      (s.status === "IN_TRANSIT" || s.status === "OUT_FOR_DELIVERY"),
+  );
+
+  // Highway SOS is strictly for long-haul highway corridor transit.
+  // When deliveries are finished or in last-mile (OUT_FOR_DELIVERY), no highway breakdown banner is displayed.
+  const activeHighwayShipment = active.find(
+    (s) => s.status === "IN_TRANSIT" || s.status === "PICKED_UP",
+  );
+
+  useEffect(() => {
+    if (!activeHighwayShipment && driverBreakdownReported) {
+      setDriverBreakdownReported(false);
+      try {
+        localStorage.removeItem("shiptrack_driver_sos_reported");
+      } catch {}
+    }
+  }, [activeHighwayShipment, driverBreakdownReported]);
+
   const handleToggleDriverSos = () => {
+    if (!activeHighwayShipment) return;
     const isNowBroken = !driverBreakdownReported;
     setDriverBreakdownReported(isNowBroken);
+
+    const vehicleNo = activeHighwayShipment.vehicleNumber || activeHighwayShipment.carrier || "Assigned Carrier Vehicle";
+    const routeCorridor = `${activeHighwayShipment.senderCity || "Origin Hub"} → ${activeHighwayShipment.receiverCity || "Destination Hub"}`;
+    const trkNo = activeHighwayShipment.trackingNumber;
+    const driver = user?.name || user?.firstName || "Driver";
+
     try {
       localStorage.setItem("shiptrack_driver_sos_reported", isNowBroken ? "true" : "false");
       if (isNowBroken) {
@@ -112,11 +147,11 @@ export default function OperatorDashboard() {
           isResolved: true,
           status: "RESOLVED",
           title: "Highway Carrier Breakdown Resolved",
-          message: "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle has resumed active highway transit towards destination on schedule.",
+          message: `Carrier vehicle ${vehicleNo} (${routeCorridor}) breakdown cleared. Vehicle has resumed active highway transit towards destination on schedule.`,
           revisedEta: "Today 09:15 PM (On Schedule)",
-          lorryNumber: "TN 38 BL 7842",
-          trackingNumber: "TRK-FC2FA501",
-          driverName: "Amrith Saravanan",
+          lorryNumber: vehicleNo,
+          trackingNumber: trkNo,
+          driverName: driver,
           resolvedAt: new Date().toISOString(),
         }));
         localStorage.removeItem("shiptrack_customer_ragu_notification");
@@ -126,13 +161,13 @@ export default function OperatorDashboard() {
 
       const fleetState = JSON.parse(localStorage.getItem("shiptrack_company_fleet_state") || "[]");
       const updatedFleet = fleetState.map((l) => {
-        if (l.lorryNumber === "TN 38 BL 7842" || l.id === "lorry-1" || l.code === "Lorry #1") {
+        if (l.lorryNumber === vehicleNo || l.id === "lorry-1" || l.code === "Lorry #1") {
           return {
             ...l,
             status: isNowBroken ? "BREAKDOWN" : "ON_HIGHWAY",
             speed: isNowBroken ? 0 : 65,
-            breakdownLocation: isNowBroken ? "NH-544 Bypass near Salem" : null,
-            breakdownReason: isNowBroken ? "Engine Overheating & Highway Stall (Reported by Driver Amrith Saravanan)" : null,
+            breakdownLocation: isNowBroken ? `${routeCorridor} Corridor` : null,
+            breakdownReason: isNowBroken ? `Engine Overheating & Highway Stall (Reported by Driver ${driver})` : null,
           };
         }
         return l;
@@ -142,7 +177,7 @@ export default function OperatorDashboard() {
 
     if (isNowBroken) {
       toast.error("🚨 HIGHWAY BREAKDOWN SOS TRANSMITTED!", {
-        description: "Company Fleet Hub notified. Lorry TN 38 BL 7842 set to BREAKDOWN status.",
+        description: `Company Fleet Hub notified. Lorry ${vehicleNo} set to BREAKDOWN status.`,
       });
     } else {
       toast.success("✅ Breakdown Status Cleared — Normal Highway Transit Resumed", {
@@ -150,33 +185,6 @@ export default function OperatorDashboard() {
       });
     }
   };
-
-  const isLoading = shipments.isLoading;
-
-  const podMap = useMemo(() => {
-    const map = new Map();
-    podQuery.data?.forEach((r) => {
-      if (r.shipmentId) map.set(Number(r.shipmentId), r);
-      if (r.trackingNumber) map.set(r.trackingNumber, r);
-    });
-    return map;
-  }, [podQuery.data]);
-
-  const assigned = shipments.data ?? [];
-  const pending = assigned.filter(
-    (s) =>
-      !s.cancelledByCustomer &&
-      (s.status === "CREATED" || s.status === "PICKED_UP"),
-  );
-
-  // const active = assigned.filter(
-  //   (s) => s.status === "IN_TRANSIT" || s.status === "OUT_FOR_DELIVERY",
-  // );
-  const active = assigned.filter(
-    (s) =>
-      !s.cancelledByCustomer &&
-      (s.status === "IN_TRANSIT" || s.status === "OUT_FOR_DELIVERY"),
-  );
 
   const delivered = assigned.filter((s) => s.status === "DELIVERED");
 
@@ -187,7 +195,25 @@ export default function OperatorDashboard() {
   const customerCancelled = assigned.filter(
     (s) => s.cancelledByCustomer === true,
   );
-  const recentNotifications = notifications.data?.slice(0, 5) ?? [];
+  const recentNotifications = useMemo(() => {
+    const raw = notifications.data ?? [];
+    if (!assigned.length) {
+      return raw.filter((n) => !n.shipmentId && !n.title?.includes("TRK-")).slice(0, 5);
+    }
+    const myTrackingSet = new Set(assigned.map((s) => s.trackingNumber?.toUpperCase()).filter(Boolean));
+    const myIdSet = new Set(assigned.map((s) => String(s.id)));
+
+    return raw.filter((n) => {
+      if (n.shipmentId && (myTrackingSet.has(String(n.shipmentId).toUpperCase()) || myIdSet.has(String(n.shipmentId)))) {
+        return true;
+      }
+      const match = n.title?.match(/TRK-[A-Z0-9]+/i) || n.message?.match(/TRK-[A-Z0-9]+/i);
+      if (match) {
+        return myTrackingSet.has(match[0].toUpperCase());
+      }
+      return !n.title?.includes("TRK-") && !n.message?.includes("TRK-");
+    }).slice(0, 5);
+  }, [notifications.data, assigned]);
 
   if (isLoading) {
     return (
@@ -208,56 +234,58 @@ export default function OperatorDashboard() {
         activeCount={active.length}
       />
 
-      {/* Driver Highway SOS Breakdown Card */}
-      <Card className={cn(
-        "border shadow-sm animate-fade-in transition-all",
-        driverBreakdownReported
-          ? "border-rose-500/50 bg-rose-500/10"
-          : "border-border bg-card"
-      )}>
-        <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "h-10 w-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm",
-              driverBreakdownReported ? "bg-rose-600 animate-pulse shadow-rose-500/30" : "bg-primary"
-            )}>
-              {driverBreakdownReported ? <AlertTriangle className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
+      {/* Driver Highway SOS Breakdown Card - strictly shown only when an active highway shipment is in transit */}
+      {activeHighwayShipment && (
+        <Card className={cn(
+          "border shadow-sm animate-fade-in transition-all",
+          driverBreakdownReported
+            ? "border-rose-500/50 bg-rose-500/10"
+            : "border-border bg-card"
+        )}>
+          <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm",
+                driverBreakdownReported ? "bg-rose-600 animate-pulse shadow-rose-500/30" : "bg-primary"
+              )}>
+                {driverBreakdownReported ? <AlertTriangle className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">
+                  Assigned Carrier: <strong className="font-mono">{activeHighwayShipment.vehicleNumber || activeHighwayShipment.carrier || "Assigned Fleet Carrier"}</strong>
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Corridor: {activeHighwayShipment.senderCity || "Origin Hub"} → {activeHighwayShipment.receiverCity || "Destination Hub"} ({activeHighwayShipment.trackingNumber}) • Live Status:{" "}
+                  <span className={cn("font-bold", driverBreakdownReported ? "text-rose-600" : "text-emerald-600")}>
+                    {driverBreakdownReported ? "🚨 HIGHWAY BREAKDOWN SOS ACTIVE" : "🟢 ON HIGHWAY (Active Transit)"}
+                  </span>
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-foreground">
-                Assigned Carrier: <strong className="font-mono">TN 38 BL 7842 (Tata Signa 4825.TK)</strong>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Corridor: Chennai → Coimbatore Corridor (NH-544) • Live Status:{" "}
-                <span className={cn("font-bold", driverBreakdownReported ? "text-rose-600" : "text-emerald-600")}>
-                  {driverBreakdownReported ? "🚨 HIGHWAY BREAKDOWN SOS ACTIVE" : "🟢 ON HIGHWAY (Active Transit)"}
-                </span>
-              </p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            variant={driverBreakdownReported ? "default" : "destructive"}
-            onClick={handleToggleDriverSos}
-            className={cn(
-              "text-xs font-bold shrink-0 gap-1.5 shadow-sm",
-              driverBreakdownReported ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""
-            )}
-          >
-            {driverBreakdownReported ? (
-              <>
-                <CheckCircle2 className="h-4 w-4" />
-                Resolve Breakdown & Resume Transit
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-4 w-4" />
-                Report Highway Breakdown SOS to Company
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+            <Button
+              size="sm"
+              variant={driverBreakdownReported ? "default" : "destructive"}
+              onClick={handleToggleDriverSos}
+              className={cn(
+                "text-xs font-bold shrink-0 gap-1.5 shadow-sm",
+                driverBreakdownReported ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""
+              )}
+            >
+              {driverBreakdownReported ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Resolve Breakdown & Resume Transit
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4" />
+                  Report Highway Breakdown SOS to Company
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
