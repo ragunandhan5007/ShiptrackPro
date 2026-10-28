@@ -48,17 +48,17 @@ const PACKAGE_TYPES = [
 ];
 
 const SHIPMENT_TYPES = [
-  { value: "STANDARD", label: "Standard", baseCost: 200 },
-  { value: "EXPRESS", label: "Express", baseCost: 350 },
-  { value: "SAME_DAY", label: "Same Day", baseCost: 500 },
-  { value: "OVERNIGHT", label: "Overnight", baseCost: 450 },
+  { value: "STANDARD", label: "Standard (3-5 Days)", baseCost: 2000, desc: "Economy delivery" },
+  { value: "EXPRESS", label: "Express (1-2 Days)", baseCost: 5000, desc: "Fast delivery" },
+  { value: "SAME_DAY", label: "Same Day (Within 24h)", baseCost: 8000, desc: "Fastest delivery" },
+  { value: "OVERNIGHT", label: "Overnight (Next Morning)", baseCost: 6500, desc: "Priority overnight" },
 ];
 
 const PRIORITIES = [
-  { value: "LOW", label: "Low", multiplier: 1 },
-  { value: "NORMAL", label: "Normal", multiplier: 1.2 },
-  { value: "HIGH", label: "High", multiplier: 1.5 },
-  { value: "URGENT", label: "Urgent", multiplier: 2 },
+  { value: "LOW", label: "Low", multiplier: 0.8, desc: "Flexible delivery window" },
+  { value: "NORMAL", label: "Normal", multiplier: 1.0, desc: "Standard priority" },
+  { value: "HIGH", label: "High", multiplier: 1.5, desc: "Prioritized handling" },
+  { value: "URGENT", label: "Urgent", multiplier: 2.0, desc: "Top priority, immediate dispatch" },
 ];
 
 export function CreateShipmentPage() {
@@ -136,10 +136,11 @@ export function CreateShipmentPage() {
     (p) => p.value === form.priority
   );
 
+  // Shipment charge = Urgency (Shipment Type) × Priority Multiplier ONLY
+  // Weight does NOT affect shipping cost
   const estimatedCost = Math.round(
     (selectedShipmentType?.baseCost ?? 0) *
-      (selectedPriority?.multiplier ?? 1) *
-      Math.max(Number(form.packageWeightKg || 0) / 10, 1),
+      (selectedPriority?.multiplier ?? 1),
   );
 
   const declaredValNum = Number(form.declaredValue) || 0;
@@ -153,8 +154,8 @@ export function CreateShipmentPage() {
     if (step === 0) {
       return (
         form.packageDescription.trim() !== "" &&
-        form.packageWeightKg > 0 &&
-        form.pieces > 0
+        Number(form.packageWeightKg) > 0 &&
+        Number(form.pieces) > 0
       );
     }
     if (step === 1) {
@@ -350,10 +351,11 @@ export function CreateShipmentPage() {
                       type="number"
                       value={form.packageWeightKg}
                       onChange={(e) =>
-                        update("packageWeightKg", Number(e.target.value))
+                        update("packageWeightKg", e.target.value)
                       }
                       min={0.1}
                       step="0.1"
+                      placeholder="e.g. 500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -362,8 +364,9 @@ export function CreateShipmentPage() {
                       id="pieces"
                       type="number"
                       value={form.pieces}
-                      onChange={(e) => update("pieces", Number(e.target.value))}
+                      onChange={(e) => update("pieces", e.target.value)}
                       min={1}
+                      placeholder="e.g. 10"
                     />
                   </div>
                   <div className="space-y-2">
@@ -373,9 +376,10 @@ export function CreateShipmentPage() {
                       type="number"
                       value={form.declaredValue}
                       onChange={(e) =>
-                        update("declaredValue", Number(e.target.value))
+                        update("declaredValue", e.target.value)
                       }
                       min={1}
+                      placeholder="e.g. 100000"
                     />
                   </div>
                 </div>
