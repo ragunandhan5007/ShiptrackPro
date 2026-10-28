@@ -825,6 +825,12 @@ export function RouteManagementPage({ defaultShipmentId }) {
 
   const [podImage, setPodImage] = useState(null);
   const [preview, setPreview] = useState(null);
+  useEffect(() => {
+    if (activePackage?.customerName) {
+      setCustomerName(activePackage.customerName);
+    }
+  }, [activePackage?.customerName]);
+
   const [customerName, setCustomerName] = useState("");
   const [isCompletingDelivery, setIsCompletingDelivery] = useState(false);
 
@@ -937,8 +943,20 @@ export function RouteManagementPage({ defaultShipmentId }) {
         description: `Docked at ${arrivedHub.name} (${arrivedHub.city}). Checkpoint logged successfully.`,
       });
     } else {
-      toast.success("Vehicle Reached Destination Gateway!", {
-        description: `Arrived at ${activeCorridor.destHub.name}. Status updated to OUT_FOR_DELIVERY.`,
+      // Reached destination hub -> automatically update status to OUT_FOR_DELIVERY!
+      if (activePackage?.dbId) {
+        try {
+          await updateStatus.mutateAsync({
+            id: Number(activePackage.dbId),
+            status: "OUT_FOR_DELIVERY",
+          });
+        } catch (err) {
+          console.warn("Could not auto-update to OUT_FOR_DELIVERY:", err);
+        }
+      }
+      setSelectedStatus("DELIVERED");
+      toast.success("Vehicle Reached Destination Hub!", {
+        description: `Arrived at ${activeCorridor.destHub.name}. Package is now OUT FOR DELIVERY for recipient dropoff.`,
       });
     }
   };
@@ -959,7 +977,8 @@ export function RouteManagementPage({ defaultShipmentId }) {
     }
 
     // DELIVERED REQUIRES POD
-    if (!customerName.trim()) {
+    const effectiveRecipient = (customerName || activePackage?.customerName || "").trim();
+    if (!effectiveRecipient) {
       toast.error("Please enter the recipient name.");
       return;
     }
@@ -982,7 +1001,7 @@ export function RouteManagementPage({ defaultShipmentId }) {
         "request",
         JSON.stringify({
           shipmentId: Number(activePackage.dbId || 18),
-          recipientName: customerName.trim(),
+          recipientName: effectiveRecipient,
           signatureUrl: signature,
         }),
       );
@@ -1074,7 +1093,7 @@ export function RouteManagementPage({ defaultShipmentId }) {
               Recenter on Truck
             </Button>
 
-            {activePackage && ["IN_TRANSIT", "PICKED_UP", "OUT_FOR_DELIVERY"].includes(activePackage.status) && (
+            {activePackage && ["IN_TRANSIT", "PICKED_UP"].includes(activePackage.status) && (
               <Button
                 size="sm"
                 variant={driverBreakdownReported ? "destructive" : "outline"}
@@ -1795,7 +1814,9 @@ export function RouteManagementPage({ defaultShipmentId }) {
         </div>
       </div>
 
-      {/* JOURNEY TELEMETRY UPDATE */}
+      {/* JOURNEY TELEMETRY UPDATE (Only for active highway transit) */}
+      {["IN_TRANSIT", "PICKED_UP"].includes(activePackage?.status) ? (
+        <>
       <div className="space-y-4 rounded-xl border bg-card p-6 shadow-sm">
         <h3 className="text-base font-bold text-foreground flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
@@ -1919,6 +1940,16 @@ export function RouteManagementPage({ defaultShipmentId }) {
           </div>
         </div>
       </div>
+        </>
+      ) : (
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3">
+        <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+        <div>
+          <p className="text-sm font-bold text-foreground">Highway Corridor Transit Completed</p>
+          <p className="text-xs text-muted-foreground">Shipment has arrived at destination gateway and is out for local delivery. Highway telemetry is archived.</p>
+        </div>
+      </div>
+      )}
 
       {/* PROOF OF DELIVERY (POD) - SHOW WHEN APPROACHING FINAL DELIVERY */}
       {(waypointStep > chosenRoute.intermediateHubs.length || activePackage?.status === "OUT_FOR_DELIVERY") && (
@@ -2005,7 +2036,7 @@ export function RouteManagementPage({ defaultShipmentId }) {
           <div className="space-y-2 max-w-md">
             <Label>Recipient Name</Label>
             <Input
-              value={customerName || activePackage?.customerName || ""}
+              value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Enter recipient name"
             />

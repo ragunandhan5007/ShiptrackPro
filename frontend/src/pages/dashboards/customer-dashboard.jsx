@@ -42,16 +42,7 @@ export default function CustomerDashboard() {
       if (isResolved) {
         const resolvedData = localStorage.getItem("shiptrack_resolved_alert_data");
         if (resolvedData) return JSON.parse(resolvedData);
-        return {
-          isResolved: true,
-          status: "RESOLVED",
-          title: "Highway Carrier Breakdown Resolved",
-          message: "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle is back on the highway in active transit.",
-          revisedEta: "Today 09:15 PM (On Schedule)",
-          lorryNumber: "TN 38 BL 7842",
-          trackingNumber: "TRK-FC2FA501",
-          driverName: "Amrith Saravanan"
-        };
+        return null;
       }
 
       const driverSos = localStorage.getItem("shiptrack_driver_sos_reported") === "true";
@@ -81,16 +72,7 @@ export default function CustomerDashboard() {
             setCustomerBroadcastAlert(JSON.parse(resolvedData));
             return;
           }
-          setCustomerBroadcastAlert({
-            isResolved: true,
-            status: "RESOLVED",
-            title: "Highway Carrier Breakdown Resolved",
-            message: "Carrier vehicle TN 38 BL 7842 breakdown cleared near Salem bypass. Vehicle is back on the highway in active transit.",
-            revisedEta: "Today 09:15 PM (On Schedule)",
-            lorryNumber: "TN 38 BL 7842",
-            trackingNumber: "TRK-FC2FA501",
-            driverName: "Amrith Saravanan"
-          });
+          setCustomerBroadcastAlert(null);
           return;
         }
 
@@ -397,10 +379,13 @@ function FeaturedTrackingCard({ shipment }) {
     !shipment.cancelledByCustomer &&
     (shipmentStatus === "CREATED" || shipmentStatus === "PICKED_UP");
   // =======================================================================
-  const etaLabel = relativeDay(shipment.estimatedDeliveryAt ?? shipment.estimatedDelivery);
   const isOutForDelivery = shipment.status === "OUT_FOR_DELIVERY" || shipment.status === "out_for_delivery";
-const isDelivered =
-  shipment.status === "DELIVERED" || shipment.status === "delivered";
+  const isDelivered = shipment.status === "DELIVERED" || shipment.status === "delivered";
+  const etaLabel = isOutForDelivery
+    ? "Arriving Today"
+    : isDelivered
+    ? "Delivered"
+    : relativeDay(shipment.estimatedDeliveryAt ?? shipment.estimatedDelivery);
   
 
   // const progress = isDelivered ? 100 : (shipment.progress ?? 60);
@@ -500,7 +485,11 @@ const isDelivered =
         <div className="mt-5 flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5 text-primary" />
-            ETA {formatDateTime(shipment.estimatedDeliveryAt)}
+            {isOutForDelivery
+              ? "ETA: Today (Out for Delivery - Dispatched with Driver)"
+              : isDelivered
+              ? `Delivered on ${formatDateTime(shipment.deliveredAt || shipment.updatedAt)}`
+              : `ETA ${formatDateTime(shipment.estimatedDeliveryAt)}`}
           </span>
         </div>
       </div>

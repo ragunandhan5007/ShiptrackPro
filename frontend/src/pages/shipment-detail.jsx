@@ -368,7 +368,7 @@ const isCustomerCancelled = shipment.cancelledByCustomer === true;
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                   {user?.role === "logistics_operator" && (
                     <>
-                      {["IN_TRANSIT", "PICKED_UP", "OUT_FOR_DELIVERY"].includes(shipment?.status) && (
+                      {["IN_TRANSIT", "PICKED_UP"].includes(shipment?.status) && (
                         <Button
                           size="sm"
                           variant={driverBreakdownReported ? "destructive" : "outline"}

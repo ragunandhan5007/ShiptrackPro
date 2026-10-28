@@ -41,7 +41,9 @@ public ProofOfDelivery create(
 
     UserProfileResponse currentUser = authClient.getCurrentUser();
 
-    if (!"LOGISTICS_OPERATOR".equalsIgnoreCase(currentUser.getRole())) {
+    if (!"LOGISTICS_OPERATOR".equalsIgnoreCase(currentUser.getRole())
+            && !"ADMIN".equalsIgnoreCase(currentUser.getRole())
+            && !"COMPANY".equalsIgnoreCase(currentUser.getRole())) {
         throw new RuntimeException(
                 "Only logistics operators can upload Proof of Delivery."
         );
@@ -52,25 +54,8 @@ public ProofOfDelivery create(
                     request.getShipmentId()
             );
 
-// Shipment must belong to the logged-in customer
-//    if (shipment.getCustomerId() == null ||
-//            !shipment.getCustomerId().equals(currentUser.getId())) {
-//
-//        throw new RuntimeException(
-//                "You are not allowed to upload Proof of Delivery for this shipment."
-//        );
-//    }
-
-    if (shipment.getDriverId() == null) {
-        throw new RuntimeException(
-                "This shipment has not been assigned to an operator."
-        );
-    }
-
-    if (!shipment.getDriverId().equals(currentUser.getId())) {
-        throw new RuntimeException(
-                "You are not assigned to this shipment."
-        );
+    if (shipment == null) {
+        throw new RuntimeException("Shipment not found.");
     }
 
     String photoUrl = cloudinaryService.uploadImage(photo);

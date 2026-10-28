@@ -122,8 +122,8 @@ export function CreateShipmentPage() {
     receiverCountry: "INDIA",
 
     // Shipment
-    shipmentType: "STANDARD",
-    priority: "NORMAL",
+    shipmentType: "",
+    priority: "",
     estimatedDeliveryAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10),
@@ -136,12 +136,14 @@ export function CreateShipmentPage() {
     (p) => p.value === form.priority
   );
 
-  // Shipment charge = Urgency (Shipment Type) × Priority Multiplier ONLY
-  // Weight does NOT affect shipping cost
-  const estimatedCost = Math.round(
-    (selectedShipmentType?.baseCost ?? 0) *
-      (selectedPriority?.multiplier ?? 1),
-  );
+  // Shipment charge = Urgency (Shipment Type) × Priority Multiplier ONLY (calculated when selected in Step 4)
+  const isPricingSelected = !!form.shipmentType && !!form.priority;
+  const estimatedCost = isPricingSelected
+    ? Math.round(
+        (selectedShipmentType?.baseCost ?? 0) *
+          (selectedPriority?.multiplier ?? 1),
+      )
+    : 0;
 
   const declaredValNum = Number(form.declaredValue) || 0;
   const totalValuePlusCharge = declaredValNum + estimatedCost;
@@ -403,7 +405,7 @@ export function CreateShipmentPage() {
                     <div className="rounded-lg bg-card/90 p-3 border border-border/70">
                       <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">Shipment Charge</span>
                       <p className="text-base font-bold text-emerald-600 mt-0.5">
-                        {formatCurrency(estimatedCost)}
+                        {isPricingSelected ? formatCurrency(estimatedCost) : "₹0 (Selected in Step 4)"}
                       </p>
                     </div>
                     <div className="rounded-lg bg-primary/10 p-3 border border-primary/30">

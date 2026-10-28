@@ -724,7 +724,9 @@ public Shipment acceptShipment(Long shipmentId) {
 
         UserProfileResponse currentUser = authClient.getCurrentUser();
 
-        if (!"LOGISTICS_OPERATOR".equalsIgnoreCase(currentUser.getRole())) {
+        if (!"LOGISTICS_OPERATOR".equalsIgnoreCase(currentUser.getRole())
+                && !"ADMIN".equalsIgnoreCase(currentUser.getRole())
+                && !"COMPANY".equalsIgnoreCase(currentUser.getRole())) {
             throw new RuntimeException(
                     "Only operators can update shipment status."
             );
@@ -734,20 +736,13 @@ public Shipment acceptShipment(Long shipmentId) {
                 .orElseThrow(() ->
                         new RuntimeException("Shipment not found"));
 
+        // If not assigned yet or delivering, link to current operator
         if (shipment.getDriverId() == null) {
-            throw new RuntimeException(
-                    "This shipment has not been accepted by an operator."
-            );
-        }
-
-//======================================================================================
-
-//  ==================================================================================
-
-        if (!shipment.getDriverId().equals(currentUser.getId())) {
-            throw new RuntimeException(
-                    "This shipment is assigned to another operator."
-            );
+            shipment.setDriverId(currentUser.getId());
+        } else if (!shipment.getDriverId().equals(currentUser.getId())
+                && !"ADMIN".equalsIgnoreCase(currentUser.getRole())
+                && !"COMPANY".equalsIgnoreCase(currentUser.getRole())) {
+            shipment.setDriverId(currentUser.getId());
         }
 
         if (Boolean.TRUE.equals(shipment.getCancelledByCustomer())) {
